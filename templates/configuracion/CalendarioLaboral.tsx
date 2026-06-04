@@ -14,8 +14,12 @@ import { Button }      from "@/components/ui/button"
 import { Badge }       from "@/components/ui/badge"
 import { Checkbox }    from "@/components/ui/checkbox"
 import { Input }       from "@/components/ui/input"
+import { Label }       from "@/components/ui/label"
 import { ScrollArea }  from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -272,6 +276,12 @@ function DiasLaboralesSelect() {
 
 const F_PAGE = 10
 
+type ModalMode = "create" | "edit" | "view"
+type ModalForm = { fecha: string; descripcion: string; diaLaboral: boolean; recurrente: boolean }
+type ModalErrors = { descripcion?: string }
+
+const EMPTY_FORM: ModalForm = { fecha: "2026-06-04", descripcion: "", diaLaboral: false, recurrente: false }
+
 function FestivosTable({ isCompact }: { isCompact: boolean }) {
   const [rows,       setRows]       = useState(FESTIVOS_INICIAL)
   const [selected,   setSelected]   = useState<Set<number>>(new Set())
@@ -281,6 +291,49 @@ function FestivosTable({ isCompact }: { isCompact: boolean }) {
   const [showSearch, setShowSearch] = useState(false)
   const [page,       setPage]       = useState(0)
 
+  // ── Modal state ──────────────────────────────────────────────────────────────
+  const [modalOpen,  setModalOpen]  = useState(false)
+  const [modalMode,  setModalMode]  = useState<ModalMode>("create")
+  const [editingId,  setEditingId]  = useState<number | null>(null)
+  const [form,       setForm]       = useState<ModalForm>(EMPTY_FORM)
+  const [errors,     setErrors]     = useState<ModalErrors>({})
+
+  function openCreate() {
+    setForm({ ...EMPTY_FORM })
+    setErrors({})
+    setModalMode("create")
+    setEditingId(null)
+    setModalOpen(true)
+  }
+  function openEdit(f: DiaFestivo) {
+    setForm({ fecha: f.fecha, descripcion: f.descripcion, diaLaboral: f.diaLaboral, recurrente: f.recurrente })
+    setErrors({})
+    setModalMode("edit")
+    setEditingId(f.id)
+    setModalOpen(true)
+  }
+  function openView(f: DiaFestivo) {
+    setForm({ fecha: f.fecha, descripcion: f.descripcion, diaLaboral: f.diaLaboral, recurrente: f.recurrente })
+    setErrors({})
+    setModalMode("view")
+    setEditingId(f.id)
+    setModalOpen(true)
+  }
+  function handleSubmit() {
+    if (!form.descripcion.trim()) {
+      setErrors({ descripcion: "Descripción no puede estar en blanco" })
+      return
+    }
+    if (modalMode === "create") {
+      const newId = Math.max(0, ...rows.map(r => r.id)) + 1
+      setRows(prev => [...prev, { id: newId, ...form }])
+    } else if (modalMode === "edit" && editingId !== null) {
+      setRows(prev => prev.map(r => r.id === editingId ? { ...r, ...form } : r))
+    }
+    setModalOpen(false)
+  }
+
+  // ── Table logic ──────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
     return rows.filter(f => !q || f.descripcion.toLowerCase().includes(q) || f.fecha.includes(q))
@@ -329,9 +382,85 @@ function FestivosTable({ isCompact }: { isCompact: boolean }) {
     setSelected(new Set()); setPage(0)
   }
 
+  const modalTitle =
+    modalMode === "create" ? "Nuevo día festivo"
+    : modalMode === "edit" ? "Editar día festivo"
+    : "Ver día festivo"
+
   return (
     <>
-      {/* Encabezado sección + toolbar */}
+      {/* ── Modal ──────────────────────────────────────────────────────────── */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{modalTitle}</DialogTitle>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4 py-1">
+            {/* Fecha */}
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">Fecha</Label>
+              <Input
+                type="date"
+                value={form.fecha}
+                onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
+                disabled={modalMode === "view"}
+              />
+            </div>
+
+            {/* Descripción */}
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">Descripción</Label>
+              <Input
+                value={form.descripcion}
+                onChange={e => { setForm(f => ({ ...f, descripcion: e.target.value })); setErrors({}) }}
+                aria-invalid={!!errors.descripcion}
+                disabled={modalMode === "view"}
+                className={errors.descripcion ? "border-destructive focus-visible:ring-destructive/30" : ""}
+                placeholder="Nombre del día festivo"
+              />
+              {errors.descripcion && (
+                <span className="text-xs text-destructive">{errors.descripcion}</span>
+              )}
+            </div>
+
+            {/* Día laboral */}
+            <div className="flex items-center justify-between">
+              <Label className="text-sm cursor-pointer" htmlFor="modal-dia-laboral">Día laboral</Label>
+              <Checkbox
+                id="modal-dia-laboral"
+                checked={form.diaLaboral}
+                onCheckedChange={v => setForm(f => ({ ...f, diaLaboral: !!v }))}
+                disabled={modalMode === "view"}
+              />
+            </div>
+
+            {/* Recurrente */}
+            <div className="flex items-center justify-between">
+              <Label className="text-sm cursor-pointer" htmlFor="modal-recurrente">Recurrente</Label>
+              <Checkbox
+                id="modal-recurrente"
+                checked={form.recurrente}
+                onCheckedChange={v => setForm(f => ({ ...f, recurrente: !!v }))}
+                disabled={modalMode === "view"}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <DialogClose asChild>
+              <Button variant="outline" size="sm">
+                {modalMode === "view" ? "Cerrar" : "Cancelar"}
+              </Button>
+            </DialogClose>
+            {modalMode !== "view" && (
+              <Button size="sm" onClick={handleSubmit}>Guardar</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Encabezado sección + toolbar ───────────────────────────────────── */}
       <div className="flex items-center justify-between px-3 h-10 border-b shrink-0">
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-foreground">Días festivos</span>
@@ -393,7 +522,7 @@ function FestivosTable({ isCompact }: { isCompact: boolean }) {
         </div>
       </div>
 
-      {/* Tabla */}
+      {/* ── Tabla ──────────────────────────────────────────────────────────── */}
       <ScrollArea className="flex-1 min-h-0">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-background">
@@ -407,14 +536,12 @@ function FestivosTable({ isCompact }: { isCompact: boolean }) {
               </TableHead>
               <TableHead className="min-w-64 cursor-pointer select-none" onClick={() => handleSort("descripcion")}>
                 <div className="flex items-center gap-1">
-                  Descripción
-                  <SortIcon dir={sortKey === "descripcion" ? sortDir : null} />
+                  Descripción <SortIcon dir={sortKey === "descripcion" ? sortDir : null} />
                 </div>
               </TableHead>
               <TableHead className="w-36 cursor-pointer select-none" onClick={() => handleSort("fecha")}>
                 <div className="flex items-center gap-1">
-                  Fecha
-                  <SortIcon dir={sortKey === "fecha" ? sortDir : null} />
+                  Fecha <SortIcon dir={sortKey === "fecha" ? sortDir : null} />
                 </div>
               </TableHead>
               <TableHead className="w-28 text-center">Día laboral</TableHead>
@@ -448,8 +575,12 @@ function FestivosTable({ isCompact }: { isCompact: boolean }) {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-center gap-0.5">
-                    <Button variant="ghost" size="icon-sm" aria-label="Ver"><Eye className="size-3.5" /></Button>
-                    <Button variant="ghost" size="icon-sm" aria-label="Editar"><Pencil className="size-3.5" /></Button>
+                    <Button variant="ghost" size="icon-sm" aria-label="Ver" onClick={() => openView(f)}>
+                      <Eye className="size-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon-sm" aria-label="Editar" onClick={() => openEdit(f)}>
+                      <Pencil className="size-3.5" />
+                    </Button>
                     <Button
                       variant="ghost" size="icon-sm" aria-label="Eliminar"
                       onClick={() => { setRows(p => p.filter(r => r.id !== f.id)); setSelected(p => { const n = new Set(p); n.delete(f.id); return n }) }}
@@ -464,7 +595,7 @@ function FestivosTable({ isCompact }: { isCompact: boolean }) {
         </Table>
       </ScrollArea>
 
-      {/* Footer */}
+      {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between border-t px-3 py-2 shrink-0 bg-muted/30">
         <span className="text-xs text-muted-foreground">
           Mostrando <span className="font-medium text-foreground">{from}–{to === 0 ? 0 : to}</span> de{" "}
@@ -482,7 +613,7 @@ function FestivosTable({ isCompact }: { isCompact: boolean }) {
               </Button>
             </div>
           )}
-          <Button size="sm" className="gap-1.5">
+          <Button size="sm" className="gap-1.5" onClick={openCreate}>
             <Plus className="size-3.5" />
             {!isCompact && "Nuevo festivo"}
           </Button>
