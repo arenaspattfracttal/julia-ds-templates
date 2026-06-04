@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useLayoutEffect, useRef } from "react"
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react"
 import {
   Settings, Users, Calendar, LayoutGrid, CreditCard,
   BookOpen, FileText, History, Shield, Plug, UserCheck,
@@ -8,7 +8,9 @@ import {
   Sparkles, PanelLeftClose, PanelLeftOpen,
   RefreshCw, SlidersHorizontal, Columns3, MoreHorizontal,
   Eye, Pencil, Trash2, Lock,
+  ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, X, Search,
 } from "lucide-react"
+import { Input } from "@/components/ui/input"
 import { Button }      from "@/components/ui/button"
 import { Badge }       from "@/components/ui/badge"
 import { Checkbox }    from "@/components/ui/checkbox"
@@ -324,207 +326,135 @@ function StatsBar({ isCompact }: { isCompact: boolean }) {
   )
 }
 
-// ─── Tabla de usuarios ────────────────────────────────────────────────────────
+// ─── Sort icon ────────────────────────────────────────────────────────────────
 
-function UsersTable({ selected, onToggleRow, onToggleAll }: {
-  selected:    Set<number>
-  onToggleRow: (id: number) => void
-  onToggleAll: () => void
-}) {
-  const allSelected = selected.size === USUARIOS.length
+type SortDir = "asc" | "desc" | null
 
-  return (
-    <ScrollArea className="flex-1 min-h-0" horizontal>
-      <Table wrapperClassName="min-w-max">
-        <TableHeader className="sticky top-0 z-10 bg-background">
-          <TableRow>
-            <TableHead className="w-10 pl-4 pr-2">
-              <Checkbox
-                checked={allSelected ? true : selected.size > 0 ? "indeterminate" : false}
-                onCheckedChange={onToggleAll}
-                aria-label="Seleccionar todos"
-              />
-            </TableHead>
-            <TableHead className="w-20 min-w-20">Habilitado</TableHead>
-            <TableHead className="min-w-44">
-              <div className="flex items-center gap-1 cursor-pointer select-none">
-                Nombre
-                <svg className="size-3 opacity-60" viewBox="0 0 10 14" fill="currentColor">
-                  <path d="M5 0L9 5H1L5 0Z" /><path d="M5 14L1 9H9L5 14Z" opacity=".3"/>
-                </svg>
-              </div>
-            </TableHead>
-            <TableHead className="min-w-52">Email</TableHead>
-            <TableHead className="min-w-36">Tipo de usuario</TableHead>
-            <TableHead className="min-w-28">Perfil</TableHead>
-            <TableHead className="min-w-40">Grupo de Permisos</TableHead>
-            <TableHead className="w-24 text-center">Verificado</TableHead>
-            <TableHead className="w-24 text-center">Bloqueado</TableHead>
-            <TableHead className="w-20 text-center">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {USUARIOS.map((u) => (
-            <TableRow key={u.id} data-state={selected.has(u.id) ? "selected" : undefined}>
-              <TableCell className="pl-4 pr-2">
-                <Checkbox
-                  checked={selected.has(u.id)}
-                  onCheckedChange={() => onToggleRow(u.id)}
-                  aria-label={`Seleccionar ${u.nombre}`}
-                />
-              </TableCell>
-              <TableCell>
-                <Badge variant={u.habilitado ? "success" : "outline"} size="sm">
-                  {u.habilitado ? "Sí" : "No"}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-sm font-medium max-w-44 truncate">{u.nombre}</TableCell>
-              <TableCell className="text-xs text-muted-foreground max-w-52 truncate font-mono">{u.email}</TableCell>
-              <TableCell className="text-sm text-muted-foreground">{u.tipoUsuario}</TableCell>
-              <TableCell>
-                <Badge variant={perfilVariant(u.perfil)} size="sm">{u.perfil}</Badge>
-              </TableCell>
-              <TableCell className="text-sm text-muted-foreground">{u.grupoPermisos || "—"}</TableCell>
-              <TableCell className="text-center">
-                <span className={cn("text-sm font-medium", u.verificado ? "text-success" : "text-muted-foreground")}>
-                  {u.verificado ? "Sí" : "No"}
-                </span>
-              </TableCell>
-              <TableCell className="text-center">
-                <span className={cn("text-sm font-medium", u.bloqueado ? "text-destructive" : "text-muted-foreground")}>
-                  {u.bloqueado ? "Sí" : "No"}
-                </span>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center justify-center gap-0.5">
-                  <Button variant="ghost" size="icon-sm" aria-label="Ver">
-                    <Eye className="size-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon-sm" aria-label="Editar">
-                    <Pencil className="size-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon-sm" aria-label="Eliminar">
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </ScrollArea>
-  )
+function SortIcon({ dir }: { dir: SortDir }) {
+  if (dir === "asc")  return <ChevronUp   className="size-3 shrink-0" />
+  if (dir === "desc") return <ChevronDown className="size-3 shrink-0" />
+  return <ChevronsUpDown className="size-3 shrink-0 opacity-30" />
 }
 
-// ─── Content panel ────────────────────────────────────────────────────────────
+function nextDir(current: SortDir): SortDir {
+  if (current === null)  return "asc"
+  if (current === "asc") return "desc"
+  return null
+}
 
-// ─── Tabla de permisos ────────────────────────────────────────────────────────
+// ─── Tabla de usuarios ────────────────────────────────────────────────────────
 
-function PermisosTable() {
-  const [selected, setSelected] = useState<Set<number>>(new Set())
-  const allSelected = selected.size === GRUPOS.length
+const U_PAGE = 10
+type UserSortKey = "nombre" | "email" | "perfil"
+
+function UsersTable({ isCompact }: { isCompact: boolean }) {
+  const [rows,       setRows]       = useState(USUARIOS)
+  const [selected,   setSelected]   = useState<Set<number>>(new Set())
+  const [sort,       setSort]       = useState<{ key: UserSortKey; dir: SortDir }>({ key: "nombre", dir: null })
+  const [query,      setQuery]      = useState("")
+  const [showSearch, setShowSearch] = useState(false)
+  const [page,       setPage]       = useState(0)
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase()
+    return rows.filter(u =>
+      !q ||
+      u.nombre.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      u.perfil.toLowerCase().includes(q) ||
+      u.grupoPermisos.toLowerCase().includes(q)
+    )
+  }, [rows, query])
+
+  const sorted = useMemo(() => {
+    if (!sort.dir) return filtered
+    return [...filtered].sort((a, b) => {
+      const av = a[sort.key] as string
+      const bv = b[sort.key] as string
+      return sort.dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av)
+    })
+  }, [filtered, sort])
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / U_PAGE))
+  const safePage   = Math.min(page, totalPages - 1)
+  const pageRows   = sorted.slice(safePage * U_PAGE, (safePage + 1) * U_PAGE)
+  const from       = sorted.length === 0 ? 0 : safePage * U_PAGE + 1
+  const to         = Math.min((safePage + 1) * U_PAGE, sorted.length)
+
+  const allSelected   = selected.size > 0 && pageRows.every(u => selected.has(u.id))
+  const someSelected  = selected.size > 0
 
   function toggleRow(id: number) {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+  function toggleAll() {
+    const pageIds = new Set(pageRows.map(u => u.id))
+    const allOn   = pageRows.every(u => selected.has(u.id))
     setSelected(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
+      const n = new Set(prev)
+      allOn ? pageIds.forEach(id => n.delete(id)) : pageIds.forEach(id => n.add(id))
+      return n
     })
   }
+  function handleSort(key: UserSortKey) {
+    setSort(prev => ({ key, dir: prev.key === key ? nextDir(prev.dir) : "asc" }))
+    setPage(0)
+  }
+  function handleRefresh() {
+    setRows(USUARIOS); setQuery(""); setSort({ key: "nombre", dir: null })
+    setPage(0); setSelected(new Set()); setShowSearch(false)
+  }
+  function deleteSelected() {
+    setRows(prev => prev.filter(u => !selected.has(u.id)))
+    setSelected(new Set()); setPage(0)
+  }
 
-  function toggleAll() {
-    setSelected(prev =>
-      prev.size === GRUPOS.length ? new Set() : new Set(GRUPOS.map(g => g.id))
+  function SortTh({ label, col, className }: { label: string; col: UserSortKey; className?: string }) {
+    return (
+      <TableHead className={cn("cursor-pointer select-none", className)} onClick={() => handleSort(col)}>
+        <div className="flex items-center gap-1">
+          {label}
+          <SortIcon dir={sort.key === col ? sort.dir : null} />
+        </div>
+      </TableHead>
     )
   }
 
   return (
-    <ScrollArea className="flex-1 min-h-0">
-      <Table>
-        <TableHeader className="sticky top-0 z-10 bg-background">
-          <TableRow>
-            <TableHead className="w-10 pl-4 pr-2">
-              <Checkbox
-                checked={allSelected ? true : selected.size > 0 ? "indeterminate" : false}
-                onCheckedChange={toggleAll}
-                aria-label="Seleccionar todos"
-              />
-            </TableHead>
-            <TableHead className="min-w-64">
-              <div className="flex items-center gap-1 cursor-pointer select-none">
-                Descripción
-                <svg className="size-3 opacity-60" viewBox="0 0 10 14" fill="currentColor">
-                  <path d="M5 0L9 5H1L5 0Z" /><path d="M5 14L1 9H9L5 14Z" opacity=".3"/>
-                </svg>
-              </div>
-            </TableHead>
-            <TableHead className="min-w-56">Nota</TableHead>
-            <TableHead className="w-28">Solo lectura</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {GRUPOS.map((g) => (
-            <TableRow key={g.id} data-state={selected.has(g.id) ? "selected" : undefined}>
-              <TableCell className="pl-4 pr-2">
-                <Checkbox
-                  checked={selected.has(g.id)}
-                  onCheckedChange={() => toggleRow(g.id)}
-                  aria-label={`Seleccionar ${g.descripcion}`}
-                />
-              </TableCell>
-              <TableCell className="text-sm font-medium">{g.descripcion}</TableCell>
-              <TableCell className="text-sm text-muted-foreground max-w-56 truncate">
-                {g.nota || ""}
-              </TableCell>
-              <TableCell>
-                <span className={cn(
-                  "text-sm font-medium",
-                  g.soloLectura ? "text-success" : "text-destructive",
-                )}>
-                  {g.soloLectura ? "Sí" : "No"}
-                </span>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </ScrollArea>
-  )
-}
-
-// ─── Content panel ────────────────────────────────────────────────────────────
-
-function ContentPanel({ isCompact, selected, onToggleRow, onToggleAll }: {
-  isCompact:   boolean
-  selected:    Set<number>
-  onToggleRow: (id: number) => void
-  onToggleAll: () => void
-}) {
-  return (
-    <Tabs defaultValue="cuentas" className="flex flex-col flex-1 min-h-0">
-      {/* Tab selector */}
-      <div className="border-b shrink-0">
-        <TabsList variant="line" className="px-3 h-12">
-          <TabsTrigger value="cuentas" className="gap-2">
-            <Users className="size-4" />
-            {!isCompact && "Cuentas de Usuarios"}
-          </TabsTrigger>
-          <TabsTrigger value="permisos" className="gap-2">
-            <Lock className="size-4" />
-            {!isCompact && "Permisos"}
-          </TabsTrigger>
-        </TabsList>
-      </div>
-
-      <TabsContent value="cuentas" className="flex flex-col flex-1 min-h-0 mt-0">
-        {/* Stats */}
-        <StatsBar isCompact={isCompact} />
-
-        {/* Table toolbar */}
-        <div className="flex items-center justify-end gap-1 px-3 h-10 border-b shrink-0">
+    <>
+      {/* Toolbar */}
+      <div className="flex items-center gap-2 px-3 h-10 border-b shrink-0">
+        {showSearch && (
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              autoFocus
+              placeholder="Buscar usuario..."
+              value={query}
+              onChange={e => { setQuery(e.target.value); setPage(0) }}
+              className="pl-8 h-7 text-xs"
+            />
+          </div>
+        )}
+        {someSelected && (
+          <span className="text-xs text-muted-foreground flex-1">
+            {selected.size} seleccionado{selected.size > 1 ? "s" : ""}
+          </span>
+        )}
+        <div className="flex items-center gap-1 ml-auto">
+          {someSelected && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon-sm" onClick={deleteSelected} aria-label="Eliminar seleccionados">
+                  <Trash2 className="size-3.5 text-destructive" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Eliminar seleccionados</TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Actualizar">
+              <Button variant="ghost" size="icon-sm" onClick={handleRefresh} aria-label="Actualizar">
                 <RefreshCw className="size-3.5" />
               </Button>
             </TooltipTrigger>
@@ -532,11 +462,16 @@ function ContentPanel({ isCompact, selected, onToggleRow, onToggleAll }: {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Filtrar">
-                <SlidersHorizontal className="size-3.5" />
+              <Button
+                variant={showSearch || query ? "secondary" : "ghost"}
+                size="icon-sm"
+                onClick={() => setShowSearch(v => !v)}
+                aria-label="Buscar"
+              >
+                {showSearch ? <X className="size-3.5" /> : <SlidersHorizontal className="size-3.5" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Filtros</TooltipContent>
+            <TooltipContent>{showSearch ? "Cerrar búsqueda" : "Filtrar"}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -555,35 +490,203 @@ function ContentPanel({ isCompact, selected, onToggleRow, onToggleAll }: {
             <DropdownMenuContent align="end">
               <DropdownMenuItem>Exportar CSV</DropdownMenuItem>
               <DropdownMenuItem>Importar usuarios</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive focus:text-destructive">
-                Eliminar seleccionados
-              </DropdownMenuItem>
+              {someSelected && (
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={deleteSelected}>
+                  Eliminar seleccionados ({selected.size})
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+      </div>
 
-        {/* Table */}
-        <UsersTable selected={selected} onToggleRow={onToggleRow} onToggleAll={onToggleAll} />
+      {/* Tabla */}
+      <ScrollArea className="flex-1 min-h-0" horizontal>
+        <Table wrapperClassName="min-w-max">
+          <TableHeader className="sticky top-0 z-10 bg-background">
+            <TableRow>
+              <TableHead className="w-10 pl-4 pr-2">
+                <Checkbox
+                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                  onCheckedChange={toggleAll}
+                  aria-label="Seleccionar página"
+                />
+              </TableHead>
+              <TableHead className="w-20 min-w-20">Habilitado</TableHead>
+              <SortTh label="Nombre"   col="nombre" className="min-w-44" />
+              <SortTh label="Email"    col="email"  className="min-w-52" />
+              <TableHead className="min-w-36">Tipo de usuario</TableHead>
+              <SortTh label="Perfil"   col="perfil" className="min-w-28" />
+              <TableHead className="min-w-40">Grupo de Permisos</TableHead>
+              <TableHead className="w-24 text-center">Verificado</TableHead>
+              <TableHead className="w-24 text-center">Bloqueado</TableHead>
+              <TableHead className="w-20 text-center">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pageRows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10} className="text-center py-10 text-sm text-muted-foreground">
+                  No hay resultados para &ldquo;{query}&rdquo;
+                </TableCell>
+              </TableRow>
+            ) : pageRows.map((u) => (
+              <TableRow key={u.id} data-state={selected.has(u.id) ? "selected" : undefined}>
+                <TableCell className="pl-4 pr-2">
+                  <Checkbox checked={selected.has(u.id)} onCheckedChange={() => toggleRow(u.id)} aria-label={`Seleccionar ${u.nombre}`} />
+                </TableCell>
+                <TableCell>
+                  <Badge variant={u.habilitado ? "success" : "outline"} size="sm">{u.habilitado ? "Sí" : "No"}</Badge>
+                </TableCell>
+                <TableCell className="text-sm font-medium max-w-44 truncate">{u.nombre}</TableCell>
+                <TableCell className="text-xs text-muted-foreground max-w-52 truncate font-mono">{u.email}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{u.tipoUsuario}</TableCell>
+                <TableCell><Badge variant={perfilVariant(u.perfil)} size="sm">{u.perfil}</Badge></TableCell>
+                <TableCell className="text-sm text-muted-foreground">{u.grupoPermisos || "—"}</TableCell>
+                <TableCell className="text-center">
+                  <span className={cn("text-sm font-medium", u.verificado ? "text-success" : "text-muted-foreground")}>
+                    {u.verificado ? "Sí" : "No"}
+                  </span>
+                </TableCell>
+                <TableCell className="text-center">
+                  <span className={cn("text-sm font-medium", u.bloqueado ? "text-destructive" : "text-muted-foreground")}>
+                    {u.bloqueado ? "Sí" : "No"}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center justify-center gap-0.5">
+                    <Button variant="ghost" size="icon-sm" aria-label="Ver"><Eye className="size-3.5" /></Button>
+                    <Button variant="ghost" size="icon-sm" aria-label="Editar"><Pencil className="size-3.5" /></Button>
+                    <Button variant="ghost" size="icon-sm" aria-label="Eliminar" onClick={() => { setRows(p => p.filter(r => r.id !== u.id)); setSelected(p => { const n = new Set(p); n.delete(u.id); return n }) }}>
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ScrollArea>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between border-t px-3 py-2 shrink-0 bg-muted/30">
-          <span className="text-xs text-muted-foreground">
-            Mostrando <span className="font-medium text-foreground">98</span> de{" "}
-            <span className="font-medium text-foreground">98</span>
-          </span>
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t px-3 py-2 shrink-0 bg-muted/30">
+        <span className="text-xs text-muted-foreground">
+          Mostrando <span className="font-medium text-foreground">{from}–{to}</span> de{" "}
+          <span className="font-medium text-foreground">{sorted.length}</span>
+        </span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>
+              <ChevronLeft className="size-3.5" />
+            </Button>
+            <span className="text-xs tabular-nums text-muted-foreground px-1">
+              {safePage + 1} / {totalPages}
+            </span>
+            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}>
+              <ChevronRight className="size-3.5" />
+            </Button>
+          </div>
           <Button size="sm" className="gap-1.5">
             <Plus className="size-3.5" />
             {!isCompact && "Nuevo usuario"}
           </Button>
         </div>
-      </TabsContent>
+      </div>
+    </>
+  )
+}
 
-      <TabsContent value="permisos" className="flex flex-col flex-1 min-h-0 mt-0">
-        {/* Toolbar */}
-        <div className="flex items-center justify-end gap-1 px-3 h-10 border-b shrink-0">
+// ─── Tabla de permisos ────────────────────────────────────────────────────────
+
+const G_PAGE = 10
+
+function PermisosTable({ isCompact }: { isCompact: boolean }) {
+  const [rows,       setRows]       = useState(GRUPOS)
+  const [selected,   setSelected]   = useState<Set<number>>(new Set())
+  const [sortDir,    setSortDir]    = useState<SortDir>(null)
+  const [query,      setQuery]      = useState("")
+  const [showSearch, setShowSearch] = useState(false)
+  const [page,       setPage]       = useState(0)
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase()
+    return rows.filter(g => !q || g.descripcion.toLowerCase().includes(q) || g.nota.toLowerCase().includes(q))
+  }, [rows, query])
+
+  const sorted = useMemo(() => {
+    if (!sortDir) return filtered
+    return [...filtered].sort((a, b) =>
+      sortDir === "asc"
+        ? a.descripcion.localeCompare(b.descripcion)
+        : b.descripcion.localeCompare(a.descripcion)
+    )
+  }, [filtered, sortDir])
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / G_PAGE))
+  const safePage   = Math.min(page, totalPages - 1)
+  const pageRows   = sorted.slice(safePage * G_PAGE, (safePage + 1) * G_PAGE)
+  const from       = sorted.length === 0 ? 0 : safePage * G_PAGE + 1
+  const to         = Math.min((safePage + 1) * G_PAGE, sorted.length)
+
+  const allSelected  = pageRows.length > 0 && pageRows.every(g => selected.has(g.id))
+  const someSelected = selected.size > 0
+
+  function toggleRow(id: number) {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+  function toggleAll() {
+    const pageIds = new Set(pageRows.map(g => g.id))
+    const allOn   = pageRows.every(g => selected.has(g.id))
+    setSelected(prev => {
+      const n = new Set(prev)
+      allOn ? pageIds.forEach(id => n.delete(id)) : pageIds.forEach(id => n.add(id))
+      return n
+    })
+  }
+  function handleRefresh() {
+    setRows(GRUPOS); setQuery(""); setSortDir(null)
+    setPage(0); setSelected(new Set()); setShowSearch(false)
+  }
+  function deleteSelected() {
+    setRows(prev => prev.filter(g => !selected.has(g.id)))
+    setSelected(new Set()); setPage(0)
+  }
+
+  return (
+    <>
+      {/* Toolbar */}
+      <div className="flex items-center gap-2 px-3 h-10 border-b shrink-0">
+        {showSearch && (
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              autoFocus
+              placeholder="Buscar grupo..."
+              value={query}
+              onChange={e => { setQuery(e.target.value); setPage(0) }}
+              className="pl-8 h-7 text-xs"
+            />
+          </div>
+        )}
+        {someSelected && !showSearch && (
+          <span className="text-xs text-muted-foreground flex-1">
+            {selected.size} seleccionado{selected.size > 1 ? "s" : ""}
+          </span>
+        )}
+        <div className="flex items-center gap-1 ml-auto">
+          {someSelected && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon-sm" onClick={deleteSelected} aria-label="Eliminar seleccionados">
+                  <Trash2 className="size-3.5 text-destructive" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Eliminar seleccionados</TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Actualizar">
+              <Button variant="ghost" size="icon-sm" onClick={handleRefresh} aria-label="Actualizar">
                 <RefreshCw className="size-3.5" />
               </Button>
             </TooltipTrigger>
@@ -591,11 +694,16 @@ function ContentPanel({ isCompact, selected, onToggleRow, onToggleAll }: {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Filtrar">
-                <SlidersHorizontal className="size-3.5" />
+              <Button
+                variant={showSearch || query ? "secondary" : "ghost"}
+                size="icon-sm"
+                onClick={() => setShowSearch(v => !v)}
+                aria-label="Buscar"
+              >
+                {showSearch ? <X className="size-3.5" /> : <SlidersHorizontal className="size-3.5" />}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Filtros</TooltipContent>
+            <TooltipContent>{showSearch ? "Cerrar búsqueda" : "Filtrar"}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -606,21 +714,111 @@ function ContentPanel({ isCompact, selected, onToggleRow, onToggleAll }: {
             <TooltipContent>Columnas</TooltipContent>
           </Tooltip>
         </div>
+      </div>
 
-        {/* Tabla */}
-        <PermisosTable />
+      {/* Tabla */}
+      <ScrollArea className="flex-1 min-h-0">
+        <Table>
+          <TableHeader className="sticky top-0 z-10 bg-background">
+            <TableRow>
+              <TableHead className="w-10 pl-4 pr-2">
+                <Checkbox
+                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                  onCheckedChange={toggleAll}
+                  aria-label="Seleccionar página"
+                />
+              </TableHead>
+              <TableHead
+                className="min-w-64 cursor-pointer select-none"
+                onClick={() => { setSortDir(d => nextDir(d)); setPage(0) }}
+              >
+                <div className="flex items-center gap-1">
+                  Descripción
+                  <SortIcon dir={sortDir} />
+                </div>
+              </TableHead>
+              <TableHead className="min-w-56">Nota</TableHead>
+              <TableHead className="w-28">Solo lectura</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pageRows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-10 text-sm text-muted-foreground">
+                  No hay resultados para &ldquo;{query}&rdquo;
+                </TableCell>
+              </TableRow>
+            ) : pageRows.map((g) => (
+              <TableRow key={g.id} data-state={selected.has(g.id) ? "selected" : undefined}>
+                <TableCell className="pl-4 pr-2">
+                  <Checkbox checked={selected.has(g.id)} onCheckedChange={() => toggleRow(g.id)} aria-label={`Seleccionar ${g.descripcion}`} />
+                </TableCell>
+                <TableCell className="text-sm font-medium">{g.descripcion}</TableCell>
+                <TableCell className="text-sm text-muted-foreground max-w-56 truncate">{g.nota || ""}</TableCell>
+                <TableCell>
+                  <span className={cn("text-sm font-medium", g.soloLectura ? "text-success" : "text-destructive")}>
+                    {g.soloLectura ? "Sí" : "No"}
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ScrollArea>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between border-t px-3 py-2 shrink-0 bg-muted/30">
-          <span className="text-xs text-muted-foreground">
-            Mostrando <span className="font-medium text-foreground">142</span> de{" "}
-            <span className="font-medium text-foreground">142</span>
-          </span>
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t px-3 py-2 shrink-0 bg-muted/30">
+        <span className="text-xs text-muted-foreground">
+          Mostrando <span className="font-medium text-foreground">{from}–{to}</span> de{" "}
+          <span className="font-medium text-foreground">{sorted.length}</span>
+        </span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={safePage === 0}>
+              <ChevronLeft className="size-3.5" />
+            </Button>
+            <span className="text-xs tabular-nums text-muted-foreground px-1">
+              {safePage + 1} / {totalPages}
+            </span>
+            <Button variant="outline" size="icon-sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}>
+              <ChevronRight className="size-3.5" />
+            </Button>
+          </div>
           <Button size="sm" className="gap-1.5">
             <Plus className="size-3.5" />
             {!isCompact && "Nuevo grupo"}
           </Button>
         </div>
+      </div>
+    </>
+  )
+}
+
+// ─── Content panel ────────────────────────────────────────────────────────────
+
+function ContentPanel({ isCompact }: { isCompact: boolean }) {
+  return (
+    <Tabs defaultValue="cuentas" className="flex flex-col flex-1 min-h-0">
+      <div className="border-b shrink-0">
+        <TabsList variant="line" className="px-3 h-12">
+          <TabsTrigger value="cuentas" className="gap-2">
+            <Users className="size-4" />
+            {!isCompact && "Cuentas de Usuarios"}
+          </TabsTrigger>
+          <TabsTrigger value="permisos" className="gap-2">
+            <Lock className="size-4" />
+            {!isCompact && "Permisos"}
+          </TabsTrigger>
+        </TabsList>
+      </div>
+
+      <TabsContent value="cuentas" className="flex flex-col flex-1 min-h-0 mt-0">
+        <StatsBar isCompact={isCompact} />
+        <UsersTable isCompact={isCompact} />
+      </TabsContent>
+
+      <TabsContent value="permisos" className="flex flex-col flex-1 min-h-0 mt-0">
+        <PermisosTable isCompact={isCompact} />
       </TabsContent>
     </Tabs>
   )
@@ -632,7 +830,6 @@ function CuentasUsuariosInner() {
   const [screenMode,   setScreenMode]   = useState<ScreenMode>("desktop")
   const [activeNav,    setActiveNav]    = useState("users")
   const [navMinimized, setNavMinimized] = useState(false)
-  const [selected,     setSelected]     = useState<Set<number>>(new Set())
 
   useEffect(() => {
     function check() {
@@ -650,20 +847,6 @@ function CuentasUsuariosInner() {
 
   const isMobile  = screenMode === "mobile"
   const isCompact = screenMode !== "desktop"
-
-  function toggleRow(id: number) {
-    setSelected(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
-  }
-
-  function toggleAll() {
-    setSelected(prev =>
-      prev.size === USUARIOS.length ? new Set() : new Set(USUARIOS.map(u => u.id))
-    )
-  }
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-background">
@@ -688,12 +871,7 @@ function CuentasUsuariosInner() {
           <div className="flex-1 flex flex-col min-h-0 gap-2 overflow-hidden">
             <HorizontalNav active={activeNav} onSelect={setActiveNav} />
             <div className="flex-1 rounded-lg border bg-background overflow-hidden flex flex-col min-h-0">
-              <ContentPanel
-                isCompact={isCompact}
-                selected={selected}
-                onToggleRow={toggleRow}
-                onToggleAll={toggleAll}
-              />
+              <ContentPanel isCompact={isCompact} />
             </div>
           </div>
         ) : (
@@ -706,12 +884,7 @@ function CuentasUsuariosInner() {
               onToggleMinimize={() => setNavMinimized(v => !v)}
             />
             <div className="flex-1 rounded-lg border bg-background overflow-hidden flex flex-col min-w-0 min-h-0">
-              <ContentPanel
-                isCompact={isCompact}
-                selected={selected}
-                onToggleRow={toggleRow}
-                onToggleAll={toggleAll}
-              />
+              <ContentPanel isCompact={isCompact} />
             </div>
           </div>
         )}
