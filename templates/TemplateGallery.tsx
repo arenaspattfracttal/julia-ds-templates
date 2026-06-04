@@ -3,85 +3,135 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Search, LayoutTemplate } from "lucide-react"
-import { ConfiguracionGeneral } from "./ConfiguracionGeneral"
-import { CuentasUsuarios } from "./CuentasUsuarios"
+import { Separator } from "@/components/ui/separator"
+import { Search, LayoutTemplate, Settings, Wrench, Package, BarChart3 } from "lucide-react"
+import { ConfiguracionGeneral } from "./configuracion/ConfiguracionGeneral"
+import { CuentasUsuarios } from "./configuracion/CuentasUsuarios"
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface TemplateEntry {
-  id: string
-  title: string
+  id:          string
+  title:       string
   description: string
-  category: string
-  status: "ready" | "wip"
-  component?: React.ComponentType
+  screen:      string
+  module:      string
+  status:      "ready" | "wip"
+  component?:  React.ComponentType
 }
 
-const templates: TemplateEntry[] = [
+// ─── Registro de módulos ──────────────────────────────────────────────────────
+
+const MODULES: { id: string; label: string; icon: React.ElementType }[] = [
+  { id: "configuracion", label: "Configuración",  icon: Settings  },
+  { id: "mantenimiento", label: "Mantenimiento",  icon: Wrench    },
+  { id: "activos",       label: "Activos",         icon: Package   },
+  { id: "reportes",      label: "Reportes",        icon: BarChart3 },
+]
+
+// ─── Registro de templates ────────────────────────────────────────────────────
+
+const TEMPLATES: TemplateEntry[] = [
+  // ── Configuración ──────────────────────────────────────────────────────────
   {
-    id: "configuracion-general",
-    title: "Configuración General",
-    description: "Pantalla de ajustes de empresa: logo, campos regionales, mapa de ubicación y datos de contacto.",
-    category: "Configuración",
-    status: "ready",
-    component: ConfiguracionGeneral,
+    id:          "configuracion-general",
+    module:      "configuracion",
+    screen:      "General",
+    title:       "Configuración General",
+    description: "Ajustes de empresa: logo, campos regionales, mapa de ubicación y datos de contacto.",
+    status:      "ready",
+    component:   ConfiguracionGeneral,
   },
   {
-    id: "cuentas-usuarios",
-    title: "Cuentas de Usuarios",
+    id:          "cuentas-usuarios",
+    module:      "configuracion",
+    screen:      "Cuentas de Usuarios",
+    title:       "Cuentas de Usuarios",
     description: "Gestión de usuarios con tabla, tabs Cuentas/Permisos, barra de contadores y acciones por fila.",
-    category: "Configuración",
-    status: "ready",
-    component: CuentasUsuarios,
+    status:      "ready",
+    component:   CuentasUsuarios,
   },
   {
-    id: "asset-list",
-    title: "Listado de activos",
-    description: "Vista de tabla con filtros, búsqueda y paginación para listados de activos.",
-    category: "Listados",
-    status: "wip",
+    id:          "calendario-laboral",
+    module:      "configuracion",
+    screen:      "Calendario laboral",
+    title:       "Calendario Laboral",
+    description: "Configuración de turnos, festivos y jornadas laborales por sede.",
+    status:      "wip",
   },
   {
-    id: "work-order-form",
-    title: "Formulario de OT",
-    description: "Formulario completo para creación y edición de órdenes de trabajo.",
-    category: "Formularios",
-    status: "wip",
+    id:          "seguridad",
+    module:      "configuracion",
+    screen:      "Seguridad",
+    title:       "Seguridad",
+    description: "Políticas de contraseñas, autenticación de dos factores y sesiones activas.",
+    status:      "wip",
+  },
+
+  // ── Mantenimiento ──────────────────────────────────────────────────────────
+  {
+    id:          "listado-ots",
+    module:      "mantenimiento",
+    screen:      "Órdenes de Trabajo",
+    title:       "Listado de OTs",
+    description: "Tabla de órdenes de trabajo con filtros por estado, técnico y activo.",
+    status:      "wip",
   },
   {
-    id: "dashboard",
-    title: "Dashboard KPIs",
-    description: "Panel de métricas con gráficos, tarjetas de resumen y filtros de fecha.",
-    category: "Dashboards",
-    status: "wip",
+    id:          "kanban-ots",
+    module:      "mantenimiento",
+    screen:      "Kanban OTs",
+    title:       "Kanban de OTs",
+    description: "Tablero Kanban drag & drop para gestión visual del flujo de trabajo.",
+    status:      "wip",
+  },
+
+  // ── Activos ────────────────────────────────────────────────────────────────
+  {
+    id:          "listado-activos",
+    module:      "activos",
+    screen:      "Activos",
+    title:       "Listado de Activos",
+    description: "Catálogo de activos con árbol jerárquico, filtros y acciones en lote.",
+    status:      "wip",
   },
 ]
 
-const categoryColors: Record<string, string> = {
-  Configuración: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
-  Listados:   "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  Formularios:"bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  Dashboards: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+// ─── Colores de módulo ────────────────────────────────────────────────────────
+
+const MODULE_COLORS: Record<string, string> = {
+  configuracion: "bg-teal-100   text-teal-800   dark:bg-teal-900   dark:text-teal-200",
+  mantenimiento: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+  activos:       "bg-blue-100   text-blue-800   dark:bg-blue-900   dark:text-blue-200",
+  reportes:      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
 }
 
-export function TemplateGallery() {
-  const [search,   setSearch]   = useState("")
-  const [activeId, setActiveId] = useState<string | null>(null)
+// ─── Gallery ──────────────────────────────────────────────────────────────────
 
-  const activeTemplate = templates.find(t => t.id === activeId)
+export function TemplateGallery() {
+  const [search,        setSearch]        = useState("")
+  const [activeModule,  setActiveModule]  = useState<string | null>(null)
+  const [activeId,      setActiveId]      = useState<string | null>(null)
+
+  const activeTemplate = TEMPLATES.find(t => t.id === activeId)
 
   // Vista de template individual
   if (activeTemplate?.component) {
     const Screen = activeTemplate.component
+    const mod = MODULES.find(m => m.id === activeTemplate.module)
     return (
       <div className="h-screen flex flex-col overflow-hidden">
-        {/* Barra de regreso */}
-        <div className="flex items-center gap-3 px-4 h-10 bg-muted border-b shrink-0">
+        <div className="flex items-center gap-2 px-4 h-10 bg-muted border-b shrink-0">
           <button
             onClick={() => setActiveId(null)}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
           >
             ← Julia DS Templates
           </button>
+          <span className="text-xs text-muted-foreground">/</span>
+          <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${MODULE_COLORS[activeTemplate.module] ?? ""}`}>
+            {mod?.label}
+          </span>
           <span className="text-xs text-muted-foreground">/</span>
           <span className="text-xs font-medium text-foreground">{activeTemplate.title}</span>
         </div>
@@ -92,16 +142,25 @@ export function TemplateGallery() {
     )
   }
 
-  const filtered = templates.filter(
-    (t) =>
-      t.title.toLowerCase().includes(search.toLowerCase()) ||
-      t.description.toLowerCase().includes(search.toLowerCase()) ||
-      t.category.toLowerCase().includes(search.toLowerCase()),
+  // Filtrado
+  const q = search.toLowerCase()
+  const filtered = TEMPLATES.filter(t =>
+    (!activeModule || t.module === activeModule) &&
+    (!q || t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q) || t.screen.toLowerCase().includes(q))
   )
+
+  // Agrupar por módulo
+  const moduleIds = activeModule
+    ? [activeModule]
+    : [...new Set(filtered.map(t => t.module))]
+
+  const readyCount = TEMPLATES.filter(t => t.status === "ready").length
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+
+      {/* Header */}
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <LayoutTemplate className="h-6 w-6 text-primary" />
@@ -120,14 +179,45 @@ export function TemplateGallery() {
             />
           </div>
         </div>
+
+        {/* Filtros de módulo */}
+        <div className="max-w-6xl mx-auto px-6 pb-3 flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setActiveModule(null)}
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
+              activeModule === null
+                ? "bg-primary text-primary-foreground border-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+            }`}
+          >
+            Todos ({TEMPLATES.length})
+          </button>
+          {MODULES.filter(m => TEMPLATES.some(t => t.module === m.id)).map(({ id, label, icon: Icon }) => {
+            const count = TEMPLATES.filter(t => t.module === id).length
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveModule(prev => prev === id ? null : id)}
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
+                  activeModule === id
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+                }`}
+              >
+                <Icon className="size-3" />
+                {label} ({count})
+              </button>
+            )
+          })}
+        </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold tracking-tight">Templates disponibles</h2>
-          <p className="text-muted-foreground mt-1">
-            {filtered.length} template{filtered.length !== 1 ? "s" : ""} · Añade los tuyos en{" "}
-            <code className="text-xs bg-muted px-1 py-0.5 rounded">templates/</code>
+      <main className="max-w-6xl mx-auto px-6 py-8">
+        <div className="mb-6">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{readyCount}</span> listos ·{" "}
+            <span className="font-medium text-foreground">{TEMPLATES.length - readyCount}</span> en progreso ·{" "}
+            Añade los tuyos en <code className="text-xs bg-muted px-1 py-0.5 rounded">templates/&lt;módulo&gt;/</code>
           </p>
         </div>
 
@@ -137,39 +227,66 @@ export function TemplateGallery() {
             <p>No hay templates que coincidan con &quot;{search}&quot;</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map((template) => (
-              <Card key={template.id} className="group hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base">{template.title}</CardTitle>
-                    <Badge
-                      variant="outline"
-                      className={template.status === "ready" ? "border-green-500 text-green-600" : "border-orange-400 text-orange-500"}
-                    >
-                      {template.status === "ready" ? "Listo" : "En progreso"}
-                    </Badge>
+          <div className="flex flex-col gap-10">
+            {moduleIds.map(modId => {
+              const mod        = MODULES.find(m => m.id === modId)
+              const ModIcon    = mod?.icon ?? LayoutTemplate
+              const modItems   = filtered.filter(t => t.module === modId)
+              if (!modItems.length) return null
+              return (
+                <section key={modId}>
+                  {/* Cabecera de módulo */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg ${MODULE_COLORS[modId] ?? "bg-muted text-foreground"}`}>
+                      <ModIcon className="size-4" />
+                      {mod?.label ?? modId}
+                    </div>
+                    <Separator className="flex-1" />
+                    <span className="text-xs text-muted-foreground">
+                      {modItems.filter(t => t.status === "ready").length} / {modItems.length} listos
+                    </span>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full w-fit ${categoryColors[template.category] ?? "bg-muted text-muted-foreground"}`}>
-                    {template.category}
-                  </span>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-4">
-                  <CardDescription className="text-sm leading-relaxed">
-                    {template.description}
-                  </CardDescription>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    disabled={template.status === "wip"}
-                    onClick={() => template.status === "ready" && setActiveId(template.id)}
-                  >
-                    {template.status === "ready" ? "Ver template" : "Próximamente"}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+
+                  {/* Grid de cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {modItems.map((template) => (
+                      <Card key={template.id} className="group hover:shadow-md transition-shadow">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">{template.screen}</p>
+                              <CardTitle className="text-base">{template.title}</CardTitle>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={template.status === "ready"
+                                ? "border-green-500 text-green-600 shrink-0"
+                                : "border-orange-400 text-orange-500 shrink-0"}
+                            >
+                              {template.status === "ready" ? "Listo" : "En progreso"}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="flex flex-col gap-4">
+                          <CardDescription className="text-sm leading-relaxed">
+                            {template.description}
+                          </CardDescription>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            disabled={template.status === "wip"}
+                            onClick={() => template.status === "ready" && setActiveId(template.id)}
+                          >
+                            {template.status === "ready" ? "Ver template" : "Próximamente"}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </section>
+              )
+            })}
           </div>
         )}
       </main>
