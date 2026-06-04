@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator"
 import { Search, LayoutTemplate, Settings, Wrench, Package, BarChart3 } from "lucide-react"
 import { ConfiguracionGeneral } from "./configuracion/ConfiguracionGeneral"
 import { CuentasUsuarios } from "./configuracion/CuentasUsuarios"
+import { CalendarioLaboral } from "./configuracion/CalendarioLaboral"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,8 +57,9 @@ const TEMPLATES: TemplateEntry[] = [
     module:      "configuracion",
     screen:      "Calendario laboral",
     title:       "Calendario Laboral",
-    description: "Configuración de turnos, festivos y jornadas laborales por sede.",
-    status:      "wip",
+    description: "Días laborales (multiselect) + tabla de días festivos con fecha, día laboral y recurrente.",
+    status:      "ready",
+    component:   CalendarioLaboral,
   },
   {
     id:          "seguridad",
