@@ -302,7 +302,7 @@ function SettingsNav({
 
 // ─── General form ─────────────────────────────────────────────────────────────
 
-function GeneralForm({ isMobile }: { isMobile: boolean }) {
+export function GeneralForm({ isMobile }: { isMobile: boolean }) {
   return (
     <div className="flex flex-col gap-3 p-3">
 

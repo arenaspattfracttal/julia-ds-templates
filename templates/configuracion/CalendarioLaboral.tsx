@@ -708,6 +708,17 @@ function CalendarioLaboralInner() {
   )
 }
 
+export function CalendarioContent({ isCompact }: { isCompact: boolean }) {
+  return (
+    <>
+      <div className="px-3 py-3 border-b shrink-0">
+        <DiasLaboralesSelect />
+      </div>
+      <FestivosTable isCompact={isCompact} />
+    </>
+  )
+}
+
 export function CalendarioLaboral() {
   const [mode, setMode] = useState<ScreenMode>("desktop")
   useEffect(() => {

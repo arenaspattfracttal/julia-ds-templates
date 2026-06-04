@@ -8,6 +8,7 @@ import { Search, LayoutTemplate, Settings, Wrench, Package, BarChart3 } from "lu
 import { ConfiguracionGeneral } from "./configuracion/ConfiguracionGeneral"
 import { CuentasUsuarios } from "./configuracion/CuentasUsuarios"
 import { CalendarioLaboral } from "./configuracion/CalendarioLaboral"
+import { ConfiguracionModule } from "./configuracion/ConfiguracionModule"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,7 +34,17 @@ const MODULES: { id: string; label: string; icon: React.ElementType }[] = [
 // ─── Registro de templates ────────────────────────────────────────────────────
 
 const TEMPLATES: TemplateEntry[] = [
-  // ── Configuración ──────────────────────────────────────────────────────────
+  // ── Configuración — módulo completo ───────────────────────────────────────
+  {
+    id:          "configuracion-module",
+    module:      "configuracion",
+    screen:      "Módulo completo",
+    title:       "Configuración — Módulo completo",
+    description: "General · Cuentas de Usuarios · Calendario Laboral navegables desde un único SettingsNav.",
+    status:      "ready",
+    component:   ConfiguracionModule,
+  },
+  // ── Configuración — pantallas individuales ─────────────────────────────────
   {
     id:          "configuracion-general",
     module:      "configuracion",
