@@ -94,6 +94,38 @@ const STATS = [
   { label: "Cuentas de solo lectura",    used: 0, max: "Ilimitado" },
 ]
 
+// ─── Datos de permisos ────────────────────────────────────────────────────────
+
+type GrupoPermiso = {
+  id:          number
+  descripcion: string
+  nota:        string
+  soloLectura: boolean
+}
+
+const GRUPOS: GrupoPermiso[] = [
+  { id:  1, descripcion: "AAA Grupo MRX",                          nota: "",                                          soloLectura: false },
+  { id:  2, descripcion: "Administrador",                          nota: "Grupo de permisos predeterminado",          soloLectura: false },
+  { id:  3, descripcion: "Admin Oauth Alfred",                     nota: "",                                          soloLectura: false },
+  { id:  4, descripcion: "Adminstrador de Negocios",               nota: "Todas las opciones son seleccionadas",      soloLectura: false },
+  { id:  5, descripcion: "ADMIN TAMAYO",                           nota: "",                                          soloLectura: false },
+  { id:  6, descripcion: "Admouath",                               nota: "",                                          soloLectura: false },
+  { id:  7, descripcion: "Alfred TEC",                             nota: "",                                          soloLectura: false },
+  { id:  8, descripcion: "Alfred TI- MTTO",                        nota: "",                                          soloLectura: false },
+  { id:  9, descripcion: "ALL_PERMISSIONS",                        nota: "",                                          soloLectura: false },
+  { id: 10, descripcion: "AUDITOR PARKS",                          nota: "ahora si se pudo reducir la lista de perm", soloLectura: true  },
+  { id: 11, descripcion: "CARLOS ALFREDO - GRUPO 1 TESTE",         nota: "GRUPO 1 TESTE",                             soloLectura: false },
+  { id: 12, descripcion: "Carlos Alfredo - Perfil pedidos",        nota: "",                                          soloLectura: false },
+  { id: 13, descripcion: "Carlos alfredo Perfil Técnico",          nota: "",                                          soloLectura: false },
+  { id: 14, descripcion: "CARLOS SOLICITAÇÃO DE SERVIÇOS TESTE",   nota: "",                                          soloLectura: false },
+  { id: 15, descripcion: "CARLOS TESTES PLANEJADORES",             nota: "",                                          soloLectura: false },
+  { id: 16, descripcion: "chefe de manutenção",                    nota: "",                                          soloLectura: false },
+  { id: 17, descripcion: "Demo Grupo Lectura",                     nota: "",                                          soloLectura: true  },
+  { id: 18, descripcion: "Grupo Básico",                           nota: "Acceso a módulos básicos",                  soloLectura: false },
+  { id: 19, descripcion: "Grupo Operativo",                        nota: "",                                          soloLectura: false },
+  { id: 20, descripcion: "Solo Lectura Tamayo",                    nota: "Permisos de consulta únicamente",           soloLectura: true  },
+]
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function perfilVariant(p: Perfil) {
@@ -386,6 +418,82 @@ function UsersTable({ selected, onToggleRow, onToggleAll }: {
 
 // ─── Content panel ────────────────────────────────────────────────────────────
 
+// ─── Tabla de permisos ────────────────────────────────────────────────────────
+
+function PermisosTable() {
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const allSelected = selected.size === GRUPOS.length
+
+  function toggleRow(id: number) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    setSelected(prev =>
+      prev.size === GRUPOS.length ? new Set() : new Set(GRUPOS.map(g => g.id))
+    )
+  }
+
+  return (
+    <ScrollArea className="flex-1 min-h-0">
+      <Table>
+        <TableHeader className="sticky top-0 z-10 bg-background">
+          <TableRow>
+            <TableHead className="w-10 pl-4 pr-2">
+              <Checkbox
+                checked={allSelected ? true : selected.size > 0 ? "indeterminate" : false}
+                onCheckedChange={toggleAll}
+                aria-label="Seleccionar todos"
+              />
+            </TableHead>
+            <TableHead className="min-w-64">
+              <div className="flex items-center gap-1 cursor-pointer select-none">
+                Descripción
+                <svg className="size-3 opacity-60" viewBox="0 0 10 14" fill="currentColor">
+                  <path d="M5 0L9 5H1L5 0Z" /><path d="M5 14L1 9H9L5 14Z" opacity=".3"/>
+                </svg>
+              </div>
+            </TableHead>
+            <TableHead className="min-w-56">Nota</TableHead>
+            <TableHead className="w-28">Solo lectura</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {GRUPOS.map((g) => (
+            <TableRow key={g.id} data-state={selected.has(g.id) ? "selected" : undefined}>
+              <TableCell className="pl-4 pr-2">
+                <Checkbox
+                  checked={selected.has(g.id)}
+                  onCheckedChange={() => toggleRow(g.id)}
+                  aria-label={`Seleccionar ${g.descripcion}`}
+                />
+              </TableCell>
+              <TableCell className="text-sm font-medium">{g.descripcion}</TableCell>
+              <TableCell className="text-sm text-muted-foreground max-w-56 truncate">
+                {g.nota || ""}
+              </TableCell>
+              <TableCell>
+                <span className={cn(
+                  "text-sm font-medium",
+                  g.soloLectura ? "text-success" : "text-destructive",
+                )}>
+                  {g.soloLectura ? "Sí" : "No"}
+                </span>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </ScrollArea>
+  )
+}
+
+// ─── Content panel ────────────────────────────────────────────────────────────
+
 function ContentPanel({ isCompact, selected, onToggleRow, onToggleAll }: {
   isCompact:   boolean
   selected:    Set<number>
@@ -471,11 +579,47 @@ function ContentPanel({ isCompact, selected, onToggleRow, onToggleAll }: {
       </TabsContent>
 
       <TabsContent value="permisos" className="flex flex-col flex-1 min-h-0 mt-0">
-        <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
-          <div className="text-center">
-            <Lock className="size-8 mx-auto mb-2 opacity-30" />
-            <p>Configuración de permisos</p>
-          </div>
+        {/* Toolbar */}
+        <div className="flex items-center justify-end gap-1 px-3 h-10 border-b shrink-0">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="Actualizar">
+                <RefreshCw className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Actualizar</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="Filtrar">
+                <SlidersHorizontal className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Filtros</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="Columnas">
+                <Columns3 className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Columnas</TooltipContent>
+          </Tooltip>
+        </div>
+
+        {/* Tabla */}
+        <PermisosTable />
+
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t px-3 py-2 shrink-0 bg-muted/30">
+          <span className="text-xs text-muted-foreground">
+            Mostrando <span className="font-medium text-foreground">142</span> de{" "}
+            <span className="font-medium text-foreground">142</span>
+          </span>
+          <Button size="sm" className="gap-1.5">
+            <Plus className="size-3.5" />
+            {!isCompact && "Nuevo grupo"}
+          </Button>
         </div>
       </TabsContent>
     </Tabs>
