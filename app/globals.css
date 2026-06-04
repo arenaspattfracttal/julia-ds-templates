@@ -1,0 +1,220 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+:root {
+  --font-sans: "Geist", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+
+  /* 1 pixel físico en cualquier DPI */
+  --1px: 1px;
+}
+
+/* 1.25x DPI (125%) */
+@media (-webkit-min-device-pixel-ratio: 1.25) and (-webkit-max-device-pixel-ratio: 1.49),
+       (min-resolution: 1.25dppx) and (max-resolution: 1.49dppx) {
+  :root { --1px: 0.8px; }
+}
+
+/* 1.5x DPI (150%) */
+@media (-webkit-min-device-pixel-ratio: 1.5) and (-webkit-max-device-pixel-ratio: 1.99),
+       (min-resolution: 1.5dppx) and (max-resolution: 1.99dppx) {
+  :root { --1px: 0.667px; }
+}
+
+/* 2x DPI (200%) */
+@media (-webkit-min-device-pixel-ratio: 2) and (-webkit-max-device-pixel-ratio: 2.99),
+       (min-resolution: 2dppx) and (max-resolution: 2.99dppx) {
+  :root { --1px: 0.5px; }
+}
+
+/* 3x DPI (300%) */
+@media (-webkit-min-device-pixel-ratio: 3),
+       (min-resolution: 3dppx) {
+  :root { --1px: 0.333px; }
+}
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Radix ScrollArea inyecta internamente un div con display:table + min-width:100%
+  que se auto-dimensiona al contenido ignorando max-width. La clase .scroll-block-viewport
+  fuerza display:block en ese wrapper para que tome el 100% del viewport (ancho fijo)
+  en lugar de expandirse al contenido — necesario en las columnas del tablero Kanban.
+*/
+.scroll-block-viewport [data-radix-scroll-area-viewport] > div {
+  display: block !important;
+}
+
+/* Titilación para borde de columna destino y línea indicadora — mismo ritmo */
+@keyframes kanban-drop-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.15; }
+}
+
+@theme inline {
+  --animate-kanban-drop-pulse: kanban-drop-pulse 1s ease-in-out infinite;
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes indeterminate-progress {
+  0%   { transform: translateX(-100%) scaleX(0.3); }
+  50%  { transform: translateX(0%)    scaleX(0.6); }
+  100% { transform: translateX(100%)  scaleX(0.3); }
+}
+
+@theme inline {
+    /* Usar px en vez de rem — elimina valores fraccionarios por DPI/zoom */
+    --spacing: 4px;
+
+    /* Font sizes en px */
+    --font-size-xs: 12px;   --line-height-xs: 16px;
+    --font-size-sm: 14px;   --line-height-sm: 20px;
+    --font-size-base: 16px; --line-height-base: 24px;
+    --font-size-lg: 18px;   --line-height-lg: 28px;
+    --font-size-xl: 20px;   --line-height-xl: 28px;
+    --font-size-2xl: 24px;  --line-height-2xl: 32px;
+    --font-size-3xl: 30px;  --line-height-3xl: 36px;
+    --font-size-4xl: 36px;  --line-height-4xl: 40px;
+    --font-size-5xl: 48px;  --line-height-5xl: 48px;
+    --font-size-6xl: 60px;  --line-height-6xl: 60px;
+    --font-size-7xl: 72px;  --line-height-7xl: 72px;
+    --font-size-8xl: 96px;  --line-height-8xl: 96px;
+    --font-size-9xl: 128px; --line-height-9xl: 128px;
+
+    /* Border radius en px */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --radius-2xl: 16px;
+    --radius-3xl: 20px;
+    --radius-4xl: 24px;
+
+    --animate-indeterminate-progress: indeterminate-progress 1.4s ease-in-out infinite;
+    --font-heading: var(--font-sans);
+    --font-sans: var(--font-sans);
+
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-overlay: var(--overlay);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    /* Fracttal semantic status colors (ready to apply later) */
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* ─── Tokens de color ────────────────────────────────────────────────────────
+   Los valores de :root y .dark se inyectan desde theme/tokens.ts
+   a través de app/layout.tsx. Edita ese archivo para cambiar colores.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Borders en 1 pixel físico — usa --1px que se ajusta al DPI del dispositivo */
+@layer utilities {
+  .border     { border-width: var(--1px) !important; }
+  .border-t   { border-top-width: var(--1px) !important; }
+  .border-b   { border-bottom-width: var(--1px) !important; }
+  .border-l   { border-left-width: var(--1px) !important; }
+  .border-r   { border-right-width: var(--1px) !important; }
+  .border-x   { border-left-width: var(--1px) !important; border-right-width: var(--1px) !important; }
+  .border-y   { border-top-width: var(--1px) !important; border-bottom-width: var(--1px) !important; }
+  .divide-y > * + * { border-top-width: var(--1px) !important; }
+  .divide-x > * + * { border-left-width: var(--1px) !important; }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--foreground) 30%, transparent) transparent;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+}
+
+/* ── Radix ScrollArea: reforzar ocultado del scrollbar nativo ── */
+/* Evita flashes de scrollbar nativo durante transiciones de modo */
+[data-radix-scroll-area-viewport] {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+[data-radix-scroll-area-viewport]::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* ── Scrollbar global — mismo estilo que el átomo ScrollArea (thin) ── */
+/* 6px = w-1.5 · thumb bg-border/50 · sin flechas · esquina transparente  */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--foreground) 30%, transparent);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--foreground) 45%, transparent);
+}
+::-webkit-scrollbar-button {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
