@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Search, LayoutTemplate } from "lucide-react"
 import { ConfiguracionGeneral } from "./ConfiguracionGeneral"
+import { CuentasUsuarios } from "./CuentasUsuarios"
 
 interface TemplateEntry {
   id: string
@@ -23,6 +24,14 @@ const templates: TemplateEntry[] = [
     category: "Configuración",
     status: "ready",
     component: ConfiguracionGeneral,
+  },
+  {
+    id: "cuentas-usuarios",
+    title: "Cuentas de Usuarios",
+    description: "Gestión de usuarios con tabla, tabs Cuentas/Permisos, barra de contadores y acciones por fila.",
+    category: "Configuración",
+    status: "ready",
+    component: CuentasUsuarios,
   },
   {
     id: "asset-list",
@@ -48,7 +57,7 @@ const templates: TemplateEntry[] = [
 ]
 
 const categoryColors: Record<string, string> = {
-  "Configuración": "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
+  Configuración: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
   Listados:   "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   Formularios:"bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
   Dashboards: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
