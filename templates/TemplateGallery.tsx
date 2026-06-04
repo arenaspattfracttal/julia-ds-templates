@@ -4,16 +4,26 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Search, LayoutTemplate } from "lucide-react"
+import { ConfiguracionGeneral } from "./ConfiguracionGeneral"
 
-interface Template {
+interface TemplateEntry {
   id: string
   title: string
   description: string
   category: string
   status: "ready" | "wip"
+  component?: React.ComponentType
 }
 
-const templates: Template[] = [
+const templates: TemplateEntry[] = [
+  {
+    id: "configuracion-general",
+    title: "Configuración General",
+    description: "Pantalla de ajustes de empresa: logo, campos regionales, mapa de ubicación y datos de contacto.",
+    category: "Configuración",
+    status: "ready",
+    component: ConfiguracionGeneral,
+  },
   {
     id: "asset-list",
     title: "Listado de activos",
@@ -38,13 +48,40 @@ const templates: Template[] = [
 ]
 
 const categoryColors: Record<string, string> = {
-  Listados: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  Formularios: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  "Configuración": "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
+  Listados:   "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  Formularios:"bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
   Dashboards: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
 }
 
 export function TemplateGallery() {
-  const [search, setSearch] = useState("")
+  const [search,   setSearch]   = useState("")
+  const [activeId, setActiveId] = useState<string | null>(null)
+
+  const activeTemplate = templates.find(t => t.id === activeId)
+
+  // Vista de template individual
+  if (activeTemplate?.component) {
+    const Screen = activeTemplate.component
+    return (
+      <div className="h-screen flex flex-col overflow-hidden">
+        {/* Barra de regreso */}
+        <div className="flex items-center gap-3 px-4 h-10 bg-muted border-b shrink-0">
+          <button
+            onClick={() => setActiveId(null)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+          >
+            ← Julia DS Templates
+          </button>
+          <span className="text-xs text-muted-foreground">/</span>
+          <span className="text-xs font-medium text-foreground">{activeTemplate.title}</span>
+        </div>
+        <div className="flex-1 min-h-0">
+          <Screen />
+        </div>
+      </div>
+    )
+  }
 
   const filtered = templates.filter(
     (t) =>
@@ -112,7 +149,13 @@ export function TemplateGallery() {
                   <CardDescription className="text-sm leading-relaxed">
                     {template.description}
                   </CardDescription>
-                  <Button variant="outline" size="sm" className="w-full" disabled={template.status === "wip"}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    disabled={template.status === "wip"}
+                    onClick={() => template.status === "ready" && setActiveId(template.id)}
+                  >
                     {template.status === "ready" ? "Ver template" : "Próximamente"}
                   </Button>
                 </CardContent>
