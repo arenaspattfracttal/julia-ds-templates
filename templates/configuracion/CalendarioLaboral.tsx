@@ -29,8 +29,10 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DatePicker } from "@/components/ui/date-picker"
 import { ScreenModeProvider } from "@/components/design-system/screen-mode-context"
 import { cn } from "@/lib/utils"
+import { parseISO, format as formatDate } from "date-fns"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -277,10 +279,10 @@ function DiasLaboralesSelect() {
 const F_PAGE = 10
 
 type ModalMode = "create" | "edit" | "view"
-type ModalForm = { fecha: string; descripcion: string; diaLaboral: boolean; recurrente: boolean }
+type ModalForm = { fecha: Date | undefined; descripcion: string; diaLaboral: boolean; recurrente: boolean }
 type ModalErrors = { descripcion?: string }
 
-const EMPTY_FORM: ModalForm = { fecha: "2026-06-04", descripcion: "", diaLaboral: false, recurrente: false }
+const EMPTY_FORM: ModalForm = { fecha: new Date(), descripcion: "", diaLaboral: false, recurrente: false }
 
 function FestivosTable({ isCompact }: { isCompact: boolean }) {
   const [rows,       setRows]       = useState(FESTIVOS_INICIAL)
@@ -299,21 +301,21 @@ function FestivosTable({ isCompact }: { isCompact: boolean }) {
   const [errors,     setErrors]     = useState<ModalErrors>({})
 
   function openCreate() {
-    setForm({ ...EMPTY_FORM })
+    setForm({ ...EMPTY_FORM, fecha: new Date() })
     setErrors({})
     setModalMode("create")
     setEditingId(null)
     setModalOpen(true)
   }
   function openEdit(f: DiaFestivo) {
-    setForm({ fecha: f.fecha, descripcion: f.descripcion, diaLaboral: f.diaLaboral, recurrente: f.recurrente })
+    setForm({ fecha: parseISO(f.fecha), descripcion: f.descripcion, diaLaboral: f.diaLaboral, recurrente: f.recurrente })
     setErrors({})
     setModalMode("edit")
     setEditingId(f.id)
     setModalOpen(true)
   }
   function openView(f: DiaFestivo) {
-    setForm({ fecha: f.fecha, descripcion: f.descripcion, diaLaboral: f.diaLaboral, recurrente: f.recurrente })
+    setForm({ fecha: parseISO(f.fecha), descripcion: f.descripcion, diaLaboral: f.diaLaboral, recurrente: f.recurrente })
     setErrors({})
     setModalMode("view")
     setEditingId(f.id)
@@ -324,11 +326,12 @@ function FestivosTable({ isCompact }: { isCompact: boolean }) {
       setErrors({ descripcion: "Descripción no puede estar en blanco" })
       return
     }
+    const fechaStr = form.fecha ? formatDate(form.fecha, "yyyy-MM-dd") : ""
     if (modalMode === "create") {
       const newId = Math.max(0, ...rows.map(r => r.id)) + 1
-      setRows(prev => [...prev, { id: newId, ...form }])
+      setRows(prev => [...prev, { id: newId, fecha: fechaStr, descripcion: form.descripcion, diaLaboral: form.diaLaboral, recurrente: form.recurrente }])
     } else if (modalMode === "edit" && editingId !== null) {
-      setRows(prev => prev.map(r => r.id === editingId ? { ...r, ...form } : r))
+      setRows(prev => prev.map(r => r.id === editingId ? { ...r, fecha: fechaStr, descripcion: form.descripcion, diaLaboral: form.diaLaboral, recurrente: form.recurrente } : r))
     }
     setModalOpen(false)
   }
@@ -398,15 +401,14 @@ function FestivosTable({ isCompact }: { isCompact: boolean }) {
 
           <div className="flex flex-col gap-4 py-1">
             {/* Fecha */}
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">Fecha</Label>
-              <Input
-                type="date"
-                value={form.fecha}
-                onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
-                disabled={modalMode === "view"}
-              />
-            </div>
+            <DatePicker
+              label="Fecha"
+              mode="single"
+              value={form.fecha}
+              onChange={d => setForm(f => ({ ...f, fecha: d as Date | undefined }))}
+              disabled={modalMode === "view"}
+              dateFormat="dd/MM/yyyy"
+            />
 
             {/* Descripción */}
             <div className="flex flex-col gap-1.5">
