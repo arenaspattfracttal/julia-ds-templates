@@ -8,6 +8,7 @@ import {
   Building2, Receipt, ListChecks, ShieldCheck,
   Users, UsersRound, Activity, Wrench,
   ShoppingBag, Hash, Link2,
+  Tag, Zap, ScanSearch,
 } from "lucide-react"
 import { Button }       from "@/components/ui/button"
 import { Switch }       from "@/components/ui/switch"
@@ -280,9 +281,9 @@ function FallasContent({ isCompact, isMobile }: { isCompact: boolean; isMobile: 
     <Tabs defaultValue="tipos" className="flex flex-col flex-1 min-h-0">
       <div className="shrink-0 px-3 py-2 border-b">
         <TabsList variant="default" className="w-full">
-          <TabsTrigger value="tipos"   className="flex-1">Tipos de Falla</TabsTrigger>
-          <TabsTrigger value="causas"  className="flex-1">Causas de Falla</TabsTrigger>
-          <TabsTrigger value="metodos" className="flex-1">Métodos de Detección</TabsTrigger>
+          <TabsTrigger value="tipos"   className="flex-1 gap-1.5"><Tag       className="size-3.5" />Tipos de Falla</TabsTrigger>
+          <TabsTrigger value="causas"  className="flex-1 gap-1.5"><Zap       className="size-3.5" />Causas de Falla</TabsTrigger>
+          <TabsTrigger value="metodos" className="flex-1 gap-1.5"><ScanSearch className="size-3.5" />Métodos de Detección</TabsTrigger>
         </TabsList>
       </div>
       <TabsContent value="tipos"   className="flex-1 min-h-0 mt-0 flex flex-col">

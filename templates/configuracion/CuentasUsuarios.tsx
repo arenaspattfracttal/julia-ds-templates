@@ -10,6 +10,7 @@ import {
   Info, EllipsisVertical, ChevronDown,
   Layers, Wrench, Package, ClipboardList, Cpu,
   ArrowLeft, RotateCcw, ListFilter, SlidersHorizontal,
+  MapPin, Hash, ToggleLeft, type LucideIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button }      from "@/components/ui/button"
@@ -876,13 +877,14 @@ type TipoModulo = {
 type SubtipoActivos = {
   id:      string
   label:   string
+  icon:    LucideIcon
   campos:  CampoModulo[]
   globales: OpcionGlobal[]
 }
 
 const SUBTIPO_ACTIVOS: SubtipoActivos[] = [
   {
-    id: "ubicaciones", label: "Ubicaciones",
+    id: "ubicaciones", label: "Ubicaciones", icon: MapPin,
     campos: [
       { id: "nombre",    label: "Nombre",                          obligatorio: true  },
       { id: "codigo",    label: "Código",                          obligatorio: false },
@@ -905,7 +907,7 @@ const SUBTIPO_ACTIVOS: SubtipoActivos[] = [
     ],
   },
   {
-    id: "equipos", label: "Equipos",
+    id: "equipos", label: "Equipos", icon: Cpu,
     campos: [
       { id: "unidad",    label: "Unidad",                obligatorio: true  },
       { id: "nombre",    label: "Nombre",                obligatorio: true  },
@@ -928,7 +930,7 @@ const SUBTIPO_ACTIVOS: SubtipoActivos[] = [
     ],
   },
   {
-    id: "herramientas", label: "Herramientas",
+    id: "herramientas", label: "Herramientas", icon: Wrench,
     campos: [
       { id: "unidad",    label: "Unidad",                          obligatorio: true  },
       { id: "nombre",    label: "Nombre",                          obligatorio: true  },
@@ -953,7 +955,7 @@ const SUBTIPO_ACTIVOS: SubtipoActivos[] = [
     ],
   },
   {
-    id: "repuestos", label: "Repuestos y Suministros",
+    id: "repuestos", label: "Repuestos y Suministros", icon: Package,
     campos: [
       { id: "unidad",    label: "Unidad",                          obligatorio: true  },
       { id: "nombre",    label: "Nombre",                          obligatorio: true  },
@@ -1228,10 +1230,12 @@ export function ModulosContent({ isCompact, isMobile = false, navId }: { isCompa
     <div className="flex flex-col flex-1 min-h-0">
       {moduloActivo === "activos" ? (
             <Tabs value={activoSubtipo} onValueChange={setActivoSubtipo} className="flex flex-col flex-1 min-h-0">
-              <div className="shrink-0 border-b px-3">
-                <TabsList variant="line">
+              <div className="shrink-0 px-3 py-2 border-b">
+                <TabsList variant="default" className="w-full">
                   {subtipos.map(s => (
-                    <TabsTrigger key={s.id} value={s.id}>{s.label}</TabsTrigger>
+                    <TabsTrigger key={s.id} value={s.id} className="flex-1 gap-1.5">
+                      <s.icon className="size-3.5" />{s.label}
+                    </TabsTrigger>
                   ))}
                 </TabsList>
               </div>
@@ -1275,10 +1279,14 @@ export function ModulosContent({ isCompact, isMobile = false, navId }: { isCompa
 
       ) : moduloActivo === "ots" ? (
             <Tabs defaultValue="permisos" className="flex flex-col flex-1 min-h-0">
-              <div className="shrink-0 border-b px-3">
-                <TabsList variant="line">
-                  <TabsTrigger value="permisos">Opciones y permisos</TabsTrigger>
-                  <TabsTrigger value="id-ot">ID de orden de trabajo</TabsTrigger>
+              <div className="shrink-0 px-3 py-2 border-b">
+                <TabsList variant="default" className="w-full">
+                  <TabsTrigger value="permisos" className="flex-1 gap-1.5">
+                    <ToggleLeft className="size-3.5" />Opciones y permisos
+                  </TabsTrigger>
+                  <TabsTrigger value="id-ot" className="flex-1 gap-1.5">
+                    <Hash className="size-3.5" />ID de orden de trabajo
+                  </TabsTrigger>
                 </TabsList>
               </div>
               <TabsContent value="permisos" className="flex-1 min-h-0 mt-0">
