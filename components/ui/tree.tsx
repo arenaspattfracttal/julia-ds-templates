@@ -4,6 +4,8 @@ import { useState } from "react"
 import { ChevronRight, ChevronDown } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Checkbox }   from "@/components/ui/checkbox"
+import { Badge }      from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -22,22 +24,39 @@ interface TreeProps {
   defaultExpandedIds?: string[]
   className?:          string
   bordered?:           boolean
+  /** Modo selección: muestra checkboxes en cada nodo */
+  selectable?:         boolean
+  /** IDs actualmente seleccionados (controlled) */
+  selectedIds?:        Set<string>
+  /** Callback al marcar / desmarcar un nodo */
+  onSelectChange?:     (id: string) => void
+  /** Conteo de hijos seleccionados por nodo padre (para badge) */
+  badgeCounts?:        Record<string, number>
 }
 
 // ─── Item ─────────────────────────────────────────────────────────────────────
 
 interface TreeItemProps {
-  node:        TreeNode
-  depth:       number
-  onOpen?:     (id: string) => void
-  expandedIds: Set<string>
-  onToggle:    (id: string) => void
+  node:             TreeNode
+  depth:            number
+  onOpen?:          (id: string) => void
+  expandedIds:      Set<string>
+  onToggle:         (id: string) => void
+  selectable?:      boolean
+  selectedIds?:     Set<string>
+  onSelectChange?:  (id: string) => void
+  badgeCounts?:     Record<string, number>
 }
 
-function TreeItem({ node, depth, onOpen, expandedIds, onToggle }: TreeItemProps) {
+function TreeItem({
+  node, depth, onOpen, expandedIds, onToggle,
+  selectable, selectedIds, onSelectChange, badgeCounts,
+}: TreeItemProps) {
   const hasChildren = !!node.children?.length
   const isExpanded  = expandedIds.has(node.id)
+  const isSelected  = selectedIds?.has(node.id) ?? false
   const Icon        = node.icon
+  const badgeCount  = badgeCounts?.[node.id]
 
   function handleToggleClick(e: React.MouseEvent) {
     e.stopPropagation()
@@ -50,17 +69,29 @@ function TreeItem({ node, depth, onOpen, expandedIds, onToggle }: TreeItemProps)
 
   return (
     <div data-slot="tree-item">
-      <div
-        className="flex items-center w-full gap-0.5"
-        style={{ paddingLeft: `${depth * 16}px` }}
-      >
+      {/* Row completo con hover — el fondo cubre todo el ancho */}
+      <div className="rounded-md transition-colors hover:bg-muted/60">
+        <div
+          className="flex items-center w-full gap-0.5"
+          style={{ paddingLeft: `${depth * 16}px` }}
+        >
+        {/* Checkbox (modo selectable) */}
+        {selectable && (
+          <span className="shrink-0 flex items-center justify-center size-8">
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => onSelectChange?.(node.id)}
+            />
+          </span>
+        )}
+
         {/* Chevron: solo expande/colapsa */}
         <span
           className={cn(
             "shrink-0 flex items-center justify-center rounded-sm transition-colors",
             node.description ? "size-8" : "size-5",
             hasChildren
-              ? "cursor-pointer text-foreground/50 hover:bg-muted hover:text-foreground"
+              ? "cursor-pointer text-foreground/60 hover:text-foreground"
               : "cursor-default"
           )}
           onClick={hasChildren ? handleToggleClick : undefined}
@@ -72,26 +103,30 @@ function TreeItem({ node, depth, onOpen, expandedIds, onToggle }: TreeItemProps)
           )}
         </span>
 
-        {/* Ícono + texto: abre el destino del activo */}
+        {/* Ícono + texto */}
         <div
           role="button"
           tabIndex={0}
           onClick={handleOpenClick}
           onKeyDown={(e) => e.key === "Enter" && handleOpenClick()}
           className={cn(
-            "flex items-center flex-1 min-w-0 rounded-md select-none transition-colors",
+            "flex items-center flex-1 min-w-0 select-none",
             node.description ? "gap-2 p-1.5 min-h-8" : "gap-1.5 px-1.5 h-8",
-            onOpen
-              ? "cursor-pointer text-foreground/70 hover:bg-muted hover:text-foreground"
-              : "cursor-default text-foreground/70"
+            onOpen ? "cursor-pointer" : "cursor-default",
+            "text-foreground/70",
           )}
         >
           {Icon && (
             <Icon className={cn("shrink-0 text-muted-foreground", node.description ? "size-4" : "size-3.5")} />
           )}
-          <span className="flex flex-col min-w-0">
-            <span className="truncate text-sm font-normal leading-tight">
-              {node.label}
+          <span className="flex flex-col min-w-0 flex-1">
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="truncate text-sm font-normal leading-tight">
+                {node.label}
+              </span>
+              {selectable && badgeCount != null && badgeCount > 0 && (
+                <Badge variant="default" size="sm" className="shrink-0">{badgeCount}</Badge>
+              )}
             </span>
             {node.description && (
               <span className="truncate text-xs leading-tight mt-0.5 text-muted-foreground">
@@ -100,7 +135,8 @@ function TreeItem({ node, depth, onOpen, expandedIds, onToggle }: TreeItemProps)
             )}
           </span>
         </div>
-      </div>
+        </div>{/* cierra flex row */}
+      </div>{/* cierra hover wrapper */}
 
       {/* Children */}
       {hasChildren && isExpanded && (
@@ -113,6 +149,10 @@ function TreeItem({ node, depth, onOpen, expandedIds, onToggle }: TreeItemProps)
               onOpen={onOpen}
               expandedIds={expandedIds}
               onToggle={onToggle}
+              selectable={selectable}
+              selectedIds={selectedIds}
+              onSelectChange={onSelectChange}
+              badgeCounts={badgeCounts}
             />
           ))}
         </div>
@@ -129,6 +169,10 @@ function Tree({
   defaultExpandedIds = [],
   className,
   bordered = false,
+  selectable,
+  selectedIds,
+  onSelectChange,
+  badgeCounts,
 }: TreeProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
     new Set(defaultExpandedIds)
@@ -160,6 +204,10 @@ function Tree({
             onOpen={onOpen}
             expandedIds={expandedIds}
             onToggle={handleToggle}
+            selectable={selectable}
+            selectedIds={selectedIds}
+            onSelectChange={onSelectChange}
+            badgeCounts={badgeCounts}
           />
         ))}
       </div>

@@ -77,6 +77,7 @@ export interface ConfigScreenProps {
   submitLabel?: string
   cancelLabel?: string
   submitDisabled?: boolean
+  hideFooter?: boolean
 }
 
 export function ConfigScreen({
@@ -89,6 +90,7 @@ export function ConfigScreen({
   submitLabel = "Guardar",
   cancelLabel = "Cancelar",
   submitDisabled = false,
+  hideFooter = false,
 }: ConfigScreenProps) {
 
   // Bloquear scroll del body cuando está abierto
@@ -168,22 +170,24 @@ export function ConfigScreen({
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 px-6 py-5 flex flex-row gap-2 md:justify-end border-t border-border">
-          <Button
-            variant="outline"
-            className="flex-1 md:flex-none"
-            onClick={() => onOpenChange(false)}
-          >
-            {cancelLabel}
-          </Button>
-          <Button
-            className="flex-1 md:flex-none"
-            disabled={submitDisabled}
-            onClick={onSubmit}
-          >
-            {submitLabel}
-          </Button>
-        </div>
+        {!hideFooter && (
+          <div className="shrink-0 px-6 py-5 flex flex-row gap-2 md:justify-end border-t border-border">
+            <Button
+              variant="outline"
+              className="flex-1 md:flex-none"
+              onClick={() => onOpenChange(false)}
+            >
+              {cancelLabel}
+            </Button>
+            <Button
+              className="flex-1 md:flex-none"
+              disabled={submitDisabled}
+              onClick={onSubmit}
+            >
+              {submitLabel}
+            </Button>
+          </div>
+        )}
 
       </div>
     </Portal.Root>

@@ -1,15 +1,15 @@
 "use client"
 
-import React, { useState, useEffect, useLayoutEffect, useRef } from "react"
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react"
 import {
   Settings, Users, Calendar, LayoutGrid, CreditCard,
   BookOpen, FileText, History, Shield, Plug, UserCheck,
   User, Printer, Save, Plus,
   PanelLeftClose, PanelLeftOpen,
-  Eye, Pencil, Trash2, Lock,
-  Info, EllipsisVertical, ChevronDown,
+  Eye, Pencil, Trash2, Lock, CheckSquare2,
+  Info, EllipsisVertical, ChevronDown, X,
   Layers, Wrench, Package, ClipboardList, Cpu,
-  ArrowLeft, RotateCcw, ListFilter, SlidersHorizontal,
+  RotateCcw, ListFilter, SlidersHorizontal,
   MapPin, Hash, ToggleLeft, type LucideIcon,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -22,9 +22,6 @@ import { TopbarBar, TopbarBarMobile } from "@/components/design-system/screens/t
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table"
-import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
@@ -33,10 +30,7 @@ import { Label } from "@/components/ui/label"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import {
-  Dialog, DialogClose, DialogContent, DialogDescription,
-  DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog"
+import { ConfigScreen } from "@/components/ui/config-screen"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScreenModeProvider } from "@/components/design-system/screen-mode-context"
@@ -46,7 +40,7 @@ import { cn } from "@/lib/utils"
 
 type ScreenMode = "desktop" | "tablet" | "mobile"
 
-type Perfil = "Administrador" | "Técnico" | "Sólo Lectura" | "Solicitudes" | "Personalizado"
+type Perfil = "Administrador" | "Técnico" | "Técnico limitado" | "Sólo Lectura" | "Solicitudes" | "Personalizado"
 
 type Usuario = {
   id:             number
@@ -155,9 +149,45 @@ function perfilVariant(p: Perfil) {
 // ─── Nuevo usuario — datos ────────────────────────────────────────────────────
 
 const TIPOS_USUARIO = ["Recursos Humanos", "Técnico", "Contratista", "Administrador"]
-const PERFILES_FORM = ["Administrador", "Técnico", "Sólo Lectura", "Solicitudes", "Personalizado"]
+const PERFILES_FORM = ["Administrador", "Técnico", "Técnico limitado", "Sólo Lectura", "Solicitudes", "Personalizado"]
+
+const PERFIL_TO_GRUPO: Record<string, string> = {
+  "Administrador":    "Administrador",
+  "Técnico":          "ADMIN TAMAYO",
+  "Técnico limitado": "ADMIN TAMAYO",
+  "Sólo Lectura":     "Solo Lectura Tamayo",
+  "Solicitudes":      "",
+  "Personalizado":    "",
+}
+
+const PERFILES_DATA: { id: string; label: string; descripcion: string }[] = [
+  { id: "Administrador",    label: "Administrador",    descripcion: "Acceso completo sin restricciones." },
+  { id: "Personalizado",    label: "Personalizado",    descripcion: "Se les puede configurar grupo de permisos para realizar cualquier tipo de acción." },
+  { id: "Técnico",          label: "Técnico",          descripcion: "Solo pueden acceder a las órdenes de trabajo que les han sido asignadas, además se les puede configurar grupo de permisos para realizar otras acciones." },
+  { id: "Técnico limitado", label: "Técnico limitado", descripcion: "Solo pueden acceder a las órdenes de trabajo que les han sido asignadas." },
+  { id: "Sólo Lectura",     label: "Sólo Lectura",     descripcion: "Solo pueden visualizar, no tienen acceso a editar o eliminar." },
+  { id: "Solicitudes",      label: "Solicitudes",      descripcion: "Solo pueden enviar solicitudes de trabajo o de material y ver su estado." },
+]
 const GRUPOS_FORM   = ["Administrador", "ADMIN TAMAYO", "Solo Lectura Tamayo", "Grupo Básico", "Grupo Operativo"]
-const MODULOS_FORM  = ["Dashboard", "Activos", "Mantenimiento", "Inventario", "Reportes"]
+const MODULOS_FORM = [
+  "Dashboard",
+  "Activos - Ubicaciones",
+  "Activos - Equipos",
+  "Recursos Humanos",
+  "Terceros",
+  "Almacenes",
+  "Órdenes de Trabajo",
+  "Medidores",
+  "Fracttal Sense",
+  "Automatizador - Eventos",
+  "Análisis Económico",
+  "Análisis Técnico",
+  "Análisis de Solicitudes",
+  "Fracttal BI",
+  "Disco Virtual",
+  "Solicitudes de Trabajo",
+  "Solicitudes de Material",
+]
 
 type NuevoUsuarioFormData = {
   tipoUsuario:         string
@@ -171,6 +201,355 @@ type NuevoUsuarioFormData = {
   modulo:              string
   ssoOnly:             boolean
   recibirCorreo:       boolean
+}
+
+// ─── Nombre picker modal ──────────────────────────────────────────────────────
+
+const PICKER_COLUMNS: ColumnDef<Usuario>[] = [
+  {
+    accessorKey: "nombre",
+    header: "Nombre",
+    cell: ({ row }) => (
+      <span className="text-sm font-medium text-foreground">{row.original.nombre}</span>
+    ),
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground">{row.original.email}</span>
+    ),
+  },
+]
+
+function NombrePickerModal({
+  open, onOpenChange, onSelect,
+}: {
+  open:          boolean
+  onOpenChange:  (v: boolean) => void
+  onSelect:      (nombre: string, email: string) => void
+}) {
+  const [view,     setView]     = useState<"list" | "new">("list")
+  const [newNombre,setNewNombre]= useState("")
+  const [newEmail, setNewEmail] = useState("")
+
+  function handleClose() {
+    setView("list"); setNewNombre(""); setNewEmail("")
+    onOpenChange(false)
+  }
+
+  function handleSelect(u: typeof USUARIOS[number]) {
+    onSelect(u.nombre, u.email)
+    handleClose()
+  }
+
+
+  function handleAddNew() {
+    if (!newNombre.trim() || !newEmail.trim()) return
+    onSelect(newNombre.trim(), newEmail.trim())
+    handleClose()
+  }
+
+  return (
+    <>
+      {/* List view */}
+      <ConfigScreen
+        open={open && view === "list"}
+        onOpenChange={v => { if (!v) handleClose() }}
+        title="Nombre"
+        hideFooter
+        onSubmit={() => {}}
+      >
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+          <DataTable
+            columns={PICKER_COLUMNS}
+            data={USUARIOS}
+            border
+            globalFilter
+            columnToggle
+            rowDensity
+            rowSelection
+            resizable
+            reorder
+            onRefresh={() => {}}
+            onAdd={() => setView("new")}
+            addLabel="Nuevo"
+            onBulkDelete={() => {}}
+            onRowClick={(row) => handleSelect(row)}
+            rowActions={(row) => (
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon-xs" aria-label="Acciones">
+                        <EllipsisVertical className="size-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" avoidCollisions={false}>Acciones</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleSelect(row)}>
+                    <CheckSquare2 className="size-3.5" />
+                    Seleccionar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Pencil className="size-3.5" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive">
+                    <Trash2 className="size-3.5" />
+                    Eliminar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          />
+        </div>
+      </ConfigScreen>
+
+      {/* New user form view */}
+      <ConfigScreen
+        open={open && view === "new"}
+        onOpenChange={() => setView("list")}
+        title="Nuevo usuario"
+        description="Esta nueva cuenta de usuario se creará dentro del catálogo de recursos humanos"
+        submitLabel="Guardar"
+        submitDisabled={!newNombre.trim() || !newEmail.trim()}
+        onSubmit={handleAddNew}
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">Nombre</Label>
+            <Input
+              value={newNombre}
+              onChange={e => setNewNombre(e.target.value)}
+              placeholder=""
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">Email</Label>
+            <Input
+              value={newEmail}
+              onChange={e => setNewEmail(e.target.value)}
+              placeholder=""
+              type="email"
+            />
+          </div>
+        </div>
+      </ConfigScreen>
+    </>
+  )
+}
+
+// ─── Perfil picker ────────────────────────────────────────────────────────────
+
+function PerfilPickerModal({
+  open, onOpenChange, value, onChange,
+}: {
+  open:         boolean
+  onOpenChange: (v: boolean) => void
+  value:        string
+  onChange:     (v: string) => void
+}) {
+  const [temp, setTemp] = useState(value)
+
+  useEffect(() => { if (open) setTemp(value) }, [open, value])
+
+  function handleSubmit() {
+    onChange(temp)
+    onOpenChange(false)
+  }
+
+  return (
+    <ConfigScreen
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Perfil"
+      submitLabel="Seleccionar"
+      submitDisabled={!temp}
+      onSubmit={handleSubmit}
+    >
+      <RadioGroup value={temp} onValueChange={setTemp} className="flex flex-col gap-0">
+        {PERFILES_DATA.map((p, i) => (
+          <label
+            key={p.id}
+            htmlFor={`perfil-${p.id}`}
+            className={cn(
+              "flex items-start gap-3 px-4 py-4 cursor-pointer hover:bg-muted/50 transition-colors",
+              i < PERFILES_DATA.length - 1 && "border-b border-border",
+            )}
+          >
+            <RadioGroupItem value={p.id} id={`perfil-${p.id}`} className="mt-0.5 shrink-0" />
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <span className="text-sm font-semibold text-foreground">{p.label}</span>
+              <span className="text-xs text-muted-foreground leading-snug">{p.descripcion}</span>
+            </div>
+          </label>
+        ))}
+      </RadioGroup>
+    </ConfigScreen>
+  )
+}
+
+// ─── Localizaciones — árbol ──────────────────────────────────────────────────
+
+import { Tree, type TreeNode } from "@/components/ui/tree"
+
+const LOCALIZACIONES_TREE: TreeNode[] = [
+  {
+    id: "pandemiahome", label: "pandemiahome", description: "//",
+    children: [
+      { id: "pandemiahome-ayto", label: "Ayuntamiento madrid para prueba", description: "// pandemiahome/" },
+    ],
+  },
+  {
+    id: "stf-group", label: "STF Group", description: "//",
+    children: [
+      {
+        id: "zona-eje", label: "Zona Eje Cafetero", description: "// STF Group/",
+        children: [
+          { id: "studio-vp2",       label: "STUDIO F Victoria Plaza 2",  description: "// STF Group/ Zona Eje Cafetero/" },
+          { id: "studio-unicentro", label: "STUDIO F Unicentro Pereira", description: "// STF Group/ Zona Eje Cafetero/" },
+          { id: "studio-arboleda",  label: "STUDIO F Parque Arboleda",   description: "// STF Group/ Zona Eje Cafetero/" },
+          { id: "ela-vp",           label: "ELA Victoria Plaza",         description: "// STF Group/ Zona Eje Cafetero/" },
+        ],
+      },
+    ],
+  },
+  { id: "minaservicios", label: "Minaservicios",               description: "//" },
+  { id: "aguas-kpital",  label: "Aguas Kpital Cúcuta",         description: "//" },
+  { id: "elsiscom",      label: "Elsiscom Ingeniería",          description: "//" },
+  { id: "coexito",       label: "Coexito S.A.S. - EAGS",       description: "//" },
+  { id: "sai-eags",      label: "SERVICIOS AEROPORTUARIOS INTEGRADOS SAI - EAGS", description: "//" },
+]
+
+function collectAllIds(nodes: TreeNode[]): string[] {
+  return nodes.flatMap(n => [n.id, ...(n.children ? collectAllIds(n.children) : [])])
+}
+
+function countSelected(node: TreeNode, selected: Set<string>): number {
+  if (!node.children) return selected.has(node.id) ? 1 : 0
+  return node.children.reduce((acc, c) => acc + countSelected(c, selected), 0)
+}
+
+function buildBadgeCounts(nodes: TreeNode[], selected: Set<string>): Record<string, number> {
+  const result: Record<string, number> = {}
+  function walk(n: TreeNode) {
+    if (n.children) {
+      const count = countSelected(n, selected)
+      if (count > 0) result[n.id] = count
+      n.children.forEach(walk)
+    }
+  }
+  nodes.forEach(walk)
+  return result
+}
+
+function filterTree(nodes: TreeNode[], q: string): TreeNode[] {
+  return nodes.flatMap(n => {
+    const match    = n.label.toLowerCase().includes(q)
+    const children = n.children ? filterTree(n.children, q) : []
+    if (match || children.length) return [{ ...n, children: children.length ? children : n.children }]
+    return []
+  })
+}
+
+function findLabel(nodes: TreeNode[], id: string): string | undefined {
+  for (const n of nodes) {
+    if (n.id === id) return n.label
+    if (n.children) { const r = findLabel(n.children, id); if (r) return r }
+  }
+}
+
+function LocalizacionPickerModal({
+  open, onOpenChange, onConfirm,
+}: {
+  open:         boolean
+  onOpenChange: (v: boolean) => void
+  onConfirm:    (nombres: string[]) => void
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [search,   setSearch]   = useState("")
+
+  function reset() { setSelected(new Set()); setSearch("") }
+  function handleClose() { reset(); onOpenChange(false) }
+
+  function handleConfirm() {
+    const nombres = collectAllIds(LOCALIZACIONES_TREE)
+      .filter(id => selected.has(id))
+      .map(id => findLabel(LOCALIZACIONES_TREE, id) ?? id)
+    onConfirm(nombres)
+    reset()
+    onOpenChange(false)
+  }
+
+  function toggleSelect(id: string) {
+    setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  }
+
+  const totalSelected = selected.size
+  const treeData      = search.trim() ? filterTree(LOCALIZACIONES_TREE, search.toLowerCase()) : LOCALIZACIONES_TREE
+  const badgeCounts   = buildBadgeCounts(LOCALIZACIONES_TREE, selected)
+
+  return (
+    <ConfigScreen
+      open={open}
+      onOpenChange={v => { if (!v) handleClose() }}
+      title="Seleccionar localizaciones"
+      submitLabel={totalSelected > 0 ? `Agregar (${totalSelected}) localizaciones` : "Sin localizaciones seleccionadas"}
+      submitDisabled={totalSelected === 0}
+      cancelLabel="Cancelar"
+      onSubmit={handleConfirm}
+    >
+      <div className="flex flex-col flex-1 min-h-0">
+        {/* Búsqueda */}
+        <div className="px-4 py-3 border-b border-border shrink-0">
+          <Input
+            type="search"
+            placeholder="Buscar..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full"
+          />
+        </div>
+
+        {/* Subheader: contador + limpiar */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border shrink-0">
+          <span className={cn("text-sm", totalSelected > 0 ? "text-primary font-medium" : "text-muted-foreground")}>
+            {totalSelected > 0 ? `(${totalSelected}) localizaciones agregadas` : "Sin localizaciones seleccionadas"}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelected(new Set())}
+            className={cn("gap-1.5 text-muted-foreground", totalSelected === 0 && "invisible pointer-events-none")}
+          >
+            <Trash2 className="size-3.5" />
+            Limpiar selección
+          </Button>
+        </div>
+
+        {/* Árbol Julia DS */}
+        <div className="flex-1 overflow-hidden">
+          {treeData.length === 0
+            ? <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">Sin resultados</div>
+            : (
+              <Tree
+                data={treeData}
+                selectable
+                selectedIds={selected}
+                onSelectChange={toggleSelect}
+                badgeCounts={badgeCounts}
+                className="h-full"
+              />
+            )
+          }
+        </div>
+      </div>
+    </ConfigScreen>
+  )
 }
 
 // ─── Nuevo usuario — pantalla ─────────────────────────────────────────────────
@@ -189,11 +568,41 @@ function NuevoUsuarioScreen({ open, onOpenChange }: { open: boolean; onOpenChang
     ssoOnly:             false,
     recibirCorreo:       true,
   })
-  const [submitted, setSubmitted] = useState(false)
-  const [isDirty,   setIsDirty]   = useState(false)
+  const [submitted,        setSubmitted]        = useState(false)
+  const [isDirty,          setIsDirty]          = useState(false)
+  const [pickerOpen,       setPickerOpen]       = useState(false)
+  const [perfilPickerOpen,  setPerfilPickerOpen]  = useState(false)
+  const [locPickerOpen,     setLocPickerOpen]     = useState(false)
+  const [localizaciones,    setLocalizaciones]    = useState<string[]>([])
 
   const emailError  = submitted && !form.email.trim()
   const perfilError = submitted && !form.perfil
+
+  const FORM_DEFAULT: NuevoUsuarioFormData = {
+    tipoUsuario:         "Recursos Humanos",
+    habilitado:          true,
+    nombre:              "",
+    email:               "",
+    perfil:              "",
+    grupoPermisos:       "",
+    permitirEditar:      false,
+    visualizarDashboard: true,
+    modulo:              "Dashboard",
+    ssoOnly:             false,
+    recibirCorreo:       true,
+  }
+
+  function resetForm() {
+    setForm(FORM_DEFAULT)
+    setSubmitted(false)
+    setIsDirty(false)
+    setLocalizaciones([])
+  }
+
+  function handleOpenChange(v: boolean) {
+    if (!v) resetForm()
+    onOpenChange(v)
+  }
 
   function set<K extends keyof NuevoUsuarioFormData>(key: K, value: NuevoUsuarioFormData[K]) {
     setForm(prev => ({ ...prev, [key]: value }))
@@ -201,202 +610,262 @@ function NuevoUsuarioScreen({ open, onOpenChange }: { open: boolean; onOpenChang
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+    <>
+      <ConfigScreen
+        open={open}
+        onOpenChange={handleOpenChange}
+        title="Nueva cuenta de usuario"
+        submitLabel="Guardar"
+        submitDisabled={!isDirty}
+        onSubmit={() => {
+          setSubmitted(true)
+          if (form.email.trim() && form.perfil) handleOpenChange(false)
+        }}
+      >
+        <div className="flex flex-col divide-y">
 
-        {/* Header */}
-        <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">Nueva cuenta de usuario</DialogTitle>
-          <DialogDescription>
-            Completa los campos para crear una nueva cuenta de usuario.
-          </DialogDescription>
-        </DialogHeader>
+          {/* Configuración general */}
+          <section className="py-4 flex flex-col gap-4">
+            <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Configuración general</span>
 
-        {/* Formulario scrollable — patrón Julia DS Modals */}
-        <div className="[overflow-y:overlay] max-h-[45vh] pl-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-transparent [&:hover::-webkit-scrollbar-thumb]:bg-muted-foreground/40">
-          <div className="flex flex-col divide-y">
-
-            {/* Configuración general */}
-            <section className="py-4 flex flex-col gap-4">
-              <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Configuración general</span>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground">Tipo de usuario</Label>
-                  <Select value={form.tipoUsuario} onValueChange={v => set("tipoUsuario", v)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TIPOS_USUARIO.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2 self-end pb-0.5">
-                  <Switch checked={form.habilitado} onCheckedChange={v => set("habilitado", v)} />
-                  <span className="text-sm text-foreground">Habilitado</span>
-                </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Tipo de usuario</Label>
+                <Select value={form.tipoUsuario} onValueChange={v => set("tipoUsuario", v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIPOS_USUARIO.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
+              <div className="flex items-center gap-2 self-end pb-0.5">
+                <Switch checked={form.habilitado} onCheckedChange={v => set("habilitado", v)} />
+                <span className="text-sm text-foreground">Habilitado</span>
+              </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground">Nombre</Label>
-                  <Input value={form.nombre} onChange={e => set("nombre", e.target.value)} />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground">Email</Label>
-                  <Input
-                    value={form.email}
-                    onChange={e => set("email", e.target.value)}
-                    className={emailError ? "border-destructive focus-visible:ring-destructive" : ""}
-                  />
-                  {emailError && (
-                    <span className="text-xs text-destructive">Email no puede estar en blanco</span>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Nombre</Label>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start font-normal",
+                    !form.nombre && "text-muted-foreground",
                   )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground">Perfil</Label>
-                  <Select value={form.perfil} onValueChange={v => set("perfil", v)}>
-                    <SelectTrigger className={cn("w-full", perfilError && "border-destructive")}>
-                      <SelectValue placeholder="" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PERFILES_FORM.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  {perfilError && (
-                    <span className="text-xs text-destructive">Perfil no puede estar en blanco</span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground">Grupo de Permisos</Label>
-                  <Select value={form.grupoPermisos} onValueChange={v => set("grupoPermisos", v)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {GRUPOS_FORM.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </section>
-
-            {/* Configuración de inicio */}
-            <section className="py-4 flex flex-col gap-4">
-              <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Configuración de inicio</span>
-              <div className="flex gap-6 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="permitir-editar"
-                    checked={form.permitirEditar}
-                    onCheckedChange={v => set("permitirEditar", !!v)}
-                  />
-                  <label htmlFor="permitir-editar" className="text-sm cursor-pointer select-none">
-                    Permitir editar por el usuario
-                  </label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="visualizar-dashboard"
-                    checked={form.visualizarDashboard}
-                    onCheckedChange={v => set("visualizarDashboard", !!v)}
-                  />
-                  <label htmlFor="visualizar-dashboard" className="text-sm cursor-pointer select-none">
-                    Visualizar dashboard principal
-                  </label>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground">Módulo</Label>
-                  <Select value={form.modulo} onValueChange={v => set("modulo", v)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MODULOS_FORM.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </section>
-
-            {/* Agregar múltiples localizaciones */}
-            <section className="py-4 flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-foreground uppercase tracking-wide">
-                  Agregar múltiples localizaciones
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  Agrega una o varias localizaciones y limita el contenido que podrá ver el usuario
-                  (Al no agregar filtros el usuario tiene acceso a todas las localizaciones)
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2.5">
-                <div className="flex items-center gap-2">
-                  <Info className="size-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Sin filtro de localizaciones</span>
-                </div>
-                <Button variant="ghost" size="icon-sm" aria-label="Agregar localización">
-                  <Plus className="size-4" />
+                  onClick={() => setPickerOpen(true)}
+                >
+                  {form.nombre || <span className="text-muted-foreground">Seleccionar…</span>}
                 </Button>
               </div>
-            </section>
-
-            {/* Otras Opciones */}
-            <section className="py-4 flex flex-col gap-3">
-              <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Otras Opciones</span>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="sso-only"
-                    checked={form.ssoOnly}
-                    onCheckedChange={v => set("ssoOnly", !!v)}
-                  />
-                  <label htmlFor="sso-only" className="text-sm cursor-pointer select-none">
-                    Autenticación únicamente mediante Single Sign-On
-                  </label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="recibir-correo"
-                    checked={form.recibirCorreo}
-                    onCheckedChange={v => set("recibirCorreo", !!v)}
-                  />
-                  <label htmlFor="recibir-correo" className="text-sm cursor-pointer select-none">
-                    Recibir por correo electrónico información de Fracttal sobre funciones,
-                    actualizaciones, sugerencias, encuestas y ofertas promocionales
-                  </label>
-                </div>
-                <div className="flex items-center gap-2 opacity-50 cursor-not-allowed">
-                  <Checkbox id="dos-pasos" disabled />
-                  <label htmlFor="dos-pasos" className="text-sm cursor-not-allowed select-none text-muted-foreground">
-                    Autenticación de dos pasos sin configurar
-                  </label>
-                </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Email</Label>
+                <Input
+                  value={form.email}
+                  onChange={e => set("email", e.target.value)}
+                  className={emailError ? "border-destructive focus-visible:ring-destructive" : ""}
+                />
+                {emailError && (
+                  <span className="text-xs text-destructive">Email no puede estar en blanco</span>
+                )}
               </div>
-            </section>
+            </div>
 
-          </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Perfil</Label>
+                <Button
+                  variant="outline"
+                  onClick={() => setPerfilPickerOpen(true)}
+                  className={cn(
+                    "w-full justify-between font-normal text-sm",
+                    !form.perfil && "text-muted-foreground",
+                    perfilError && "border-destructive",
+                  )}
+                >
+                  <span>{form.perfil || "Seleccionar perfil"}</span>
+                  <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                </Button>
+                {perfilError && (
+                  <span className="text-xs text-destructive">Perfil no puede estar en blanco</span>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Grupo de Permisos</Label>
+                <Select value={form.grupoPermisos} onValueChange={v => set("grupoPermisos", v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GRUPOS_FORM.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </section>
+
+          {/* Configuración de inicio */}
+          <section className="py-4 flex flex-col gap-4">
+            <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Configuración de inicio</span>
+            <div className="flex gap-6 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="permitir-editar"
+                  checked={form.permitirEditar}
+                  onCheckedChange={v => set("permitirEditar", !!v)}
+                />
+                <label htmlFor="permitir-editar" className="text-sm cursor-pointer select-none">
+                  Permitir editar por el usuario
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="visualizar-dashboard"
+                  checked={form.visualizarDashboard}
+                  onCheckedChange={v => set("visualizarDashboard", !!v)}
+                />
+                <label htmlFor="visualizar-dashboard" className="text-sm cursor-pointer select-none">
+                  Visualizar dashboard principal
+                </label>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Módulo</Label>
+                <Select value={form.modulo} onValueChange={v => set("modulo", v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MODULOS_FORM.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </section>
+
+          {/* Agregar múltiples localizaciones */}
+          <section className="py-4 flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                Agregar múltiples localizaciones
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Agrega una o varias localizaciones y limita el contenido que podrá ver el usuario
+                (Al no agregar filtros el usuario tiene acceso a todas las localizaciones)
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/40 px-3 py-2.5 min-h-[42px]">
+              <div className="flex flex-wrap gap-1.5 flex-1">
+                {localizaciones.length === 0 ? (
+                  <div className="flex items-center gap-2">
+                    <Info className="size-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm text-muted-foreground">Sin filtro de localizaciones</span>
+                  </div>
+                ) : (
+                  localizaciones.map(loc => (
+                    <Badge key={loc} variant="outline" size="lg" className="gap-1">
+                      {loc}
+                      <button
+                        type="button"
+                        aria-label={`Eliminar ${loc}`}
+                        onClick={() => setLocalizaciones(prev => prev.filter(l => l !== loc))}
+                        className="ml-0.5 cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </Badge>
+                  ))
+                )}
+              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setLocPickerOpen(true)}
+                    aria-label="Agregar múltiples localizaciones"
+                    className="shrink-0"
+                  >
+                    <Plus className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">Agregar múltiples localizaciones</TooltipContent>
+              </Tooltip>
+            </div>
+          </section>
+
+          {/* Otras Opciones */}
+          <section className="py-4 flex flex-col gap-3">
+            <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Otras Opciones</span>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="sso-only"
+                  checked={form.ssoOnly}
+                  onCheckedChange={v => set("ssoOnly", !!v)}
+                />
+                <label htmlFor="sso-only" className="text-sm cursor-pointer select-none">
+                  Autenticación únicamente mediante Single Sign-On
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="recibir-correo"
+                  checked={form.recibirCorreo}
+                  onCheckedChange={v => set("recibirCorreo", !!v)}
+                />
+                <label htmlFor="recibir-correo" className="text-sm cursor-pointer select-none">
+                  Recibir por correo electrónico información de Fracttal sobre funciones,
+                  actualizaciones, sugerencias, encuestas y ofertas promocionales
+                </label>
+              </div>
+              <div className="flex items-center gap-2 opacity-50 cursor-not-allowed">
+                <Checkbox id="dos-pasos" disabled />
+                <label htmlFor="dos-pasos" className="text-sm cursor-not-allowed select-none text-muted-foreground">
+                  Autenticación de dos pasos sin configurar
+                </label>
+              </div>
+            </div>
+          </section>
+
         </div>
+      </ConfigScreen>
 
-        {/* Footer */}
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Cancelar</Button>
-          </DialogClose>
-          <Button disabled={!isDirty} onClick={() => setSubmitted(true)}>
-            <Save className="size-4" />
-            Guardar
-          </Button>
-        </DialogFooter>
+      {/* Picker de nombre — modal anidado */}
+      <NombrePickerModal
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={(nombre, email) => {
+          set("nombre", nombre)
+          if (!form.email) set("email", email)
+        }}
+      />
 
-      </DialogContent>
-    </Dialog>
+      {/* Picker de localizaciones — modal anidado */}
+      <LocalizacionPickerModal
+        open={locPickerOpen}
+        onOpenChange={setLocPickerOpen}
+        onConfirm={nombres => setLocalizaciones(prev => {
+          const all = [...prev, ...nombres]
+          return [...new Set(all)]
+        })}
+      />
+
+      {/* Picker de perfil — modal anidado */}
+      <PerfilPickerModal
+        open={perfilPickerOpen}
+        onOpenChange={setPerfilPickerOpen}
+        value={form.perfil}
+        onChange={v => {
+          set("perfil", v)
+          set("grupoPermisos", PERFIL_TO_GRUPO[v] ?? "")
+        }}
+      />
+
+    </>
   )
 }
 
@@ -642,7 +1111,7 @@ function UsersTable({ isCompact }: { isCompact: boolean }) {
         <DataTable
           columns={COLUMNS}
           data={USUARIOS}
-          border={false}
+          border
           resizable
           reorder
           rowSelection
@@ -682,115 +1151,266 @@ function UsersTable({ isCompact }: { isCompact: boolean }) {
 
 // ─── Tabla de permisos ────────────────────────────────────────────────────────
 
+type PermisoRow = {
+  id: number
+  modulo: string
+  submodulo: string
+  ver: boolean | null
+  agregar: boolean | null
+  editar: boolean | null
+  eliminar: boolean | null
+  reportes: boolean | null
+}
+
+const PERMISOS_DEFAULT: PermisoRow[] = [
+  // Activos
+  { id: 1,  modulo: "Activos", submodulo: "Ubicaciones",                                              ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 2,  modulo: "Activos", submodulo: "Equipos",                                                  ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 3,  modulo: "Activos", submodulo: "Herramientas",                                             ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 4,  modulo: "Activos", submodulo: "Repuestos y Suministros",                                  ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 5,  modulo: "Activos", submodulo: "Digital",                                                  ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 6,  modulo: "Activos", submodulo: "Importar / Exportar",                                      ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 7,  modulo: "Activos", submodulo: "Mapas",                                                    ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  // Recursos Humanos
+  { id: 8,  modulo: "Recursos Humanos", submodulo: "General",                                         ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 9,  modulo: "Recursos Humanos", submodulo: "Importar / Exportar",                             ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  // Terceros
+  { id: 10, modulo: "Terceros", submodulo: "General",                                                 ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 11, modulo: "Terceros", submodulo: "Servicios",                                               ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 12, modulo: "Terceros", submodulo: "Importar / Exportar",                                     ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  // Almacenes
+  { id: 13, modulo: "Almacenes", submodulo: "General",                                                ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 14, modulo: "Almacenes", submodulo: "Órdenes de Compra",                                      ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 15, modulo: "Almacenes", submodulo: "Entradas",                                               ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 16, modulo: "Almacenes", submodulo: "Salidas",                                                ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 17, modulo: "Almacenes", submodulo: "Existencia",                                             ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 18, modulo: "Almacenes", submodulo: "Requisiciones de material",                              ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  // Tareas
+  { id: 19, modulo: "Tareas", submodulo: "Plan de Tareas",                                            ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 20, modulo: "Tareas", submodulo: "Activos Vinculados",                                        ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 21, modulo: "Tareas", submodulo: "Tareas Pendientes",                                         ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 22, modulo: "Tareas", submodulo: "Órdenes de Trabajo",                                        ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 23, modulo: "Tareas", submodulo: "En Proceso",                                                ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 24, modulo: "Tareas", submodulo: "En Revisión",                                               ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 25, modulo: "Tareas", submodulo: "Finalizadas",                                               ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 26, modulo: "Tareas", submodulo: "Calendarios",                                               ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 27, modulo: "Tareas", submodulo: "Presupuestos",                                              ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 28, modulo: "Tareas", submodulo: "Recursos Inventarios en OTs en proceso",                    ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 29, modulo: "Tareas", submodulo: "Recursos humanos en OTs en proceso",                        ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 30, modulo: "Tareas", submodulo: "Recursos servicios en OTs en proceso",                      ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 31, modulo: "Tareas", submodulo: "Recursos Inventarios (no catalogado) en OTs en proceso",    ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 32, modulo: "Tareas", submodulo: "Recursos servicios (no catalogado) en OTs en proceso",      ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 33, modulo: "Tareas", submodulo: "Recursos Inventarios en OTs en revisión",                   ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 34, modulo: "Tareas", submodulo: "Recursos humanos en OTs en revisión",                       ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 35, modulo: "Tareas", submodulo: "Recursos servicios en OTs en revisión",                     ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 36, modulo: "Tareas", submodulo: "Recursos Inventarios (no catalogado) en OTs en revisión",   ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 37, modulo: "Tareas", submodulo: "Recursos servicios (no catalogado) en OTs en revisión",     ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 38, modulo: "Tareas", submodulo: "Recursos Inventarios en OTs finalizadas",                   ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 39, modulo: "Tareas", submodulo: "Recursos Humanos en OTs finalizadas",                       ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 40, modulo: "Tareas", submodulo: "Recursos servicios en OTs finalizadas",                     ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 41, modulo: "Tareas", submodulo: "Recursos Inventarios (no catalogado) en OTs finalizadas",   ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 42, modulo: "Tareas", submodulo: "Recursos servicios (no catalogado) en OTs finalizadas",     ver: true, agregar: true, editar: true, eliminar: true, reportes: null },
+  { id: 43, modulo: "Tareas", submodulo: "Registro de la tarea en OT de otros usuarios",              ver: true, agregar: null, editar: null, eliminar: null, reportes: null },
+  { id: 44, modulo: "Tareas", submodulo: "Lecturas del Medidor",                                      ver: true, agregar: null, editar: null, eliminar: null, reportes: null },
+  { id: 45, modulo: "Tareas", submodulo: "Comentarios al historial de las OTs",                       ver: true, agregar: true, editar: null, eliminar: null, reportes: null },
+  { id: 46, modulo: "Tareas", submodulo: "Crear reportes en una tarea dentro de una OT",              ver: true, agregar: null, editar: null, eliminar: null, reportes: true },
+  { id: 47, modulo: "Tareas", submodulo: "Aprobar/Cancelar Presupuesto",                              ver: null, agregar: null, editar: true, eliminar: true, reportes: null },
+  { id: 48, modulo: "Tareas", submodulo: "Compliance y seguridad",                                    ver: true, agregar: null, editar: true, eliminar: true, reportes: true },
+  { id: 49, modulo: "Tareas", submodulo: "Proyectos de OT",                                           ver: true, agregar: null, editar: null, eliminar: null, reportes: null },
+  // Tooms
+  { id: 50, modulo: "Tooms", submodulo: "Horario",                                                    ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 51, modulo: "Tooms", submodulo: "General",                                                    ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 52, modulo: "Tooms", submodulo: "Programación de Agenda",                                     ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  // Monitoreo
+  { id: 53, modulo: "Monitoreo", submodulo: "Medidores",                                              ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 54, modulo: "Monitoreo", submodulo: "Fracttal Sense",                                         ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 55, modulo: "Monitoreo", submodulo: "Fracttal On Board",                                      ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 56, modulo: "Monitoreo", submodulo: "Lecturas del Medidor",                                   ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  // Automatizador
+  { id: 57, modulo: "Automatizador", submodulo: "Eventos",                                            ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 58, modulo: "Automatizador", submodulo: "Fracttal Hub",                                       ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  // Inteligencia de Negocio
+  { id: 59, modulo: "Inteligencia de Negocio", submodulo: "Análisis Económicos",                      ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 60, modulo: "Inteligencia de Negocio", submodulo: "Análisis Técnico",                         ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 61, modulo: "Inteligencia de Negocio", submodulo: "Análisis de Solicitudes",                  ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 62, modulo: "Inteligencia de Negocio", submodulo: "Fracttal IA",                              ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 63, modulo: "Inteligencia de Negocio", submodulo: "Indicadores",                              ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 64, modulo: "Inteligencia de Negocio", submodulo: "Análisis de Performance",                  ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 65, modulo: "Inteligencia de Negocio", submodulo: "Dashboard",                                ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  // Disco Virtual
+  { id: 66, modulo: "Disco Virtual", submodulo: "General",                                            ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  // Configuración
+  { id: 67, modulo: "Configuración", submodulo: "General",                                            ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 68, modulo: "Configuración", submodulo: "Calendario/laboral",                                 ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 69, modulo: "Configuración", submodulo: "Cuentas de Usuarios",                                ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 70, modulo: "Configuración", submodulo: "Solicitudes",                                        ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 71, modulo: "Configuración", submodulo: "Financiero",                                         ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 72, modulo: "Configuración", submodulo: "Órdenes de Trabajo",                                 ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 73, modulo: "Configuración", submodulo: "Catálogos",                                          ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 74, modulo: "Configuración", submodulo: "Gestión Documental",                                 ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 75, modulo: "Configuración", submodulo: "Log de Transacciones",                               ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 76, modulo: "Configuración", submodulo: "Errores",                                            ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 77, modulo: "Configuración", submodulo: "Adjuntar imágenes desde la galería",                 ver: true, agregar: true, editar: null, eliminar: null, reportes: null },
+  // Solicitudes de Material
+  { id: 78, modulo: "Solicitudes de Material", submodulo: "Mis Solicitudes",                          ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 79, modulo: "Solicitudes de Material", submodulo: "Administración",                           ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  // Solicitudes de Trabajo
+  { id: 80, modulo: "Solicitudes de Trabajo", submodulo: "Mis solicitudes",                           ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+  { id: 81, modulo: "Solicitudes de Trabajo", submodulo: "Administración",                            ver: true, agregar: true, editar: true, eliminar: true, reportes: true },
+]
+
+function createPermisosColumns(
+  toggle: (id: number, key: keyof PermisoRow) => void
+): ColumnDef<PermisoRow>[] {
+  function permCol(key: keyof PermisoRow, header: string): ColumnDef<PermisoRow> {
+    return {
+      accessorKey: key,
+      header,
+      size: 80,
+      cell: ({ row }) => {
+        const val = row.original[key]
+        if (val === null) return null
+        return (
+          <div className="flex justify-center">
+            <Checkbox
+              checked={val as boolean}
+              onCheckedChange={() => toggle(row.original.id, key)}
+            />
+          </div>
+        )
+      },
+    }
+  }
+  return [
+    { accessorKey: "modulo",    header: "Módulo",    size: 160, cell: ({ row }) => <span className="text-sm text-foreground">{row.original.modulo}</span> },
+    { accessorKey: "submodulo", header: "Submódulo", size: 280, cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.submodulo}</span> },
+    permCol("ver",      "Ver"),
+    permCol("agregar",  "Agregar"),
+    permCol("editar",   "Editar"),
+    permCol("eliminar", "Eliminar"),
+    permCol("reportes", "Reportes"),
+  ]
+}
 
 // ─── Modal nuevo grupo de permisos ───────────────────────────────────────────
 
-function GrupoPermisosModal({
-  open, onOpenChange,
-}: {
-  open: boolean
-  onOpenChange: (v: boolean) => void
-}) {
-  const [descripcion,     setDescripcion]     = useState("")
-  const [nota,            setNota]            = useState("")
-  const [soloLectura,     setSoloLectura]     = useState(false)
-  const [seleccionarTodo, setSeleccionarTodo] = useState(false)
-  const [touched,         setTouched]         = useState(false)
+function GrupoPermisosModal({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const [descripcion,  setDescripcion]  = useState("")
+  const [nota,         setNota]         = useState("")
+  const [soloLectura,  setSoloLectura]  = useState(false)
+  const [touched,      setTouched]      = useState(false)
+  const [permisos,     setPermisos]     = useState<PermisoRow[]>(PERMISOS_DEFAULT)
 
   const invalid = touched && !descripcion.trim()
 
+  // Toggle individual cell
+  function togglePermiso(id: number, key: keyof PermisoRow) {
+    setPermisos(prev => prev.map(r =>
+      r.id === id ? { ...r, [key]: r[key] === null ? null : !r[key] } : r
+    ))
+  }
+
+  // Solo lectura: only ver=true, rest false (keep null as null)
+  function applySoloLectura(checked: boolean) {
+    setSoloLectura(checked)
+    if (checked) {
+      setPermisos(prev => prev.map(r => ({
+        ...r,
+        ver:      r.ver      !== null ? true  : null,
+        agregar:  r.agregar  !== null ? false : null,
+        editar:   r.editar   !== null ? false : null,
+        eliminar: r.eliminar !== null ? false : null,
+        reportes: r.reportes !== null ? false : null,
+      })))
+    }
+  }
+
+  // Seleccionar / deseleccionar todo
+  function toggleAll() {
+    const allChecked = permisos.every(r =>
+      (r.ver === null || r.ver) &&
+      (r.agregar === null || r.agregar) &&
+      (r.editar === null || r.editar) &&
+      (r.eliminar === null || r.eliminar) &&
+      (r.reportes === null || r.reportes)
+    )
+    const next = !allChecked
+    setPermisos(prev => prev.map(r => ({
+      ...r,
+      ver:      r.ver      !== null ? next : null,
+      agregar:  r.agregar  !== null ? next : null,
+      editar:   r.editar   !== null ? next : null,
+      eliminar: r.eliminar !== null ? next : null,
+      reportes: r.reportes !== null ? next : null,
+    })))
+  }
+
+  const columns = useMemo(() => createPermisosColumns(togglePermiso), [permisos])
+
   function handleClose() {
     setDescripcion(""); setNota(""); setSoloLectura(false)
-    setSeleccionarTodo(false); setTouched(false)
+    setTouched(false); setPermisos(PERMISOS_DEFAULT)
     onOpenChange(false)
   }
 
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) handleClose() }}>
-      <DialogContent showCloseButton={false} className="max-w-4xl h-[90vh] p-0 gap-0 flex flex-col overflow-hidden">
-
-        {/* Header */}
-        <div className="flex items-center justify-between h-14 px-4 border-b shrink-0">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon-sm" onClick={handleClose} aria-label="Volver">
-              <ArrowLeft className="size-4" />
-            </Button>
-            <span className="text-base font-semibold text-foreground">Nuevo grupo de permisos</span>
-          </div>
-          <Button size="sm" disabled>
-            <Save className="size-4" />
-            Guardar
-          </Button>
-        </div>
-
-        {/* Formulario */}
-        <div className="px-4 py-4 flex flex-col gap-4 border-b shrink-0">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5 min-w-0">
-              <Input
-                placeholder="Descripción"
-                value={descripcion}
-                onChange={e => { setDescripcion(e.target.value); setTouched(true) }}
-                aria-invalid={invalid}
-                className={cn(invalid && "border-destructive focus-visible:ring-destructive/20")}
-              />
-              {invalid && (
-                <span className="text-xs text-destructive">Este campo es obligatorio</span>
-              )}
-            </div>
+    <ConfigScreen
+      open={open}
+      onOpenChange={v => { if (!v) handleClose() }}
+      title="Nuevo grupo de permisos"
+      submitLabel="Guardar"
+      submitDisabled={true}
+      onSubmit={() => {}}
+    >
+      <div className="flex flex-col gap-3 flex-1 min-h-0">
+        {/* Descripción + Nota */}
+        <div className="grid grid-cols-2 gap-3 px-4 pt-2">
+          <div className="flex flex-col gap-1.5 min-w-0">
             <Input
-              placeholder="Nota"
-              value={nota}
-              onChange={e => setNota(e.target.value)}
-              className="min-w-0"
+              placeholder="Descripción"
+              value={descripcion}
+              onChange={e => { setDescripcion(e.target.value); setTouched(true) }}
+              aria-invalid={invalid}
+              className={cn(invalid && "border-destructive focus-visible:ring-destructive/20")}
             />
+            {invalid && <span className="text-xs text-destructive">Este campo es obligatorio</span>}
           </div>
-          <div className="flex items-center gap-8">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <Checkbox
-                checked={soloLectura}
-                onCheckedChange={v => setSoloLectura(!!v)}
-              />
-              <span className="text-sm text-foreground">Solo lectura.</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <Checkbox
-                checked={seleccionarTodo}
-                onCheckedChange={v => setSeleccionarTodo(!!v)}
-              />
-              <span className="text-sm text-foreground">Seleccionar / Deseleccionar todo.</span>
-            </label>
-          </div>
+          <Input
+            placeholder="Nota"
+            value={nota}
+            onChange={e => setNota(e.target.value)}
+            className="min-w-0"
+          />
         </div>
 
-        {/* Toolbar de permisos */}
-        <div className="flex items-center justify-end gap-1 px-3 py-2 border-b shrink-0">
-          <Button variant="ghost" size="icon-sm" aria-label="Actualizar">
-            <RotateCcw className="size-4 text-primary" />
-          </Button>
-          <Button variant="ghost" size="icon-sm" aria-label="Filtrar">
-            <ListFilter className="size-4 text-primary" />
-          </Button>
-          <Button variant="ghost" size="icon-sm" aria-label="Opciones">
-            <SlidersHorizontal className="size-4 text-primary" />
-          </Button>
+        {/* Solo lectura + Seleccionar todo */}
+        <div className="flex items-center justify-between px-4">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <Checkbox checked={soloLectura} onCheckedChange={v => applySoloLectura(!!v)} />
+            <span className="text-sm text-foreground">Solo lectura</span>
+          </label>
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="text-sm text-primary hover:underline cursor-pointer"
+          >
+            Seleccionar / Deseleccionar todo
+          </button>
         </div>
 
-        {/* Empty state */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-3">
-          <svg width="80" height="80" viewBox="0 0 80 80" fill="none" aria-hidden="true">
-            <rect x="12" y="36" width="56" height="36" rx="4" className="fill-primary/20" />
-            <path d="M12 46 Q40 40 68 46" strokeWidth="2" fill="none" className="stroke-primary/30" />
-            <rect x="20" y="28" width="40" height="12" rx="3" className="fill-primary/30" />
-            <circle cx="50" cy="22" r="4" className="fill-primary/20" />
-            <path d="M50 22 Q54 14 58 10" strokeWidth="1.5" strokeLinecap="round" fill="none" className="stroke-primary/20" />
-            <circle cx="60" cy="9" r="2" className="fill-primary/30" />
-          </svg>
-          <span className="text-sm text-muted-foreground">Sin datos para mostrar</span>
+        {/* Toolbar + DataTable */}
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+          <DataTable
+            columns={columns}
+            data={permisos}
+            border
+            globalFilter
+            rowDensity
+            rowSelection
+          />
         </div>
-
-      </DialogContent>
-    </Dialog>
+      </div>
+    </ConfigScreen>
   )
 }
 
