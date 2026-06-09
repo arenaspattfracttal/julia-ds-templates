@@ -6,25 +6,23 @@ import {
   Settings, Users, Calendar, LayoutGrid, CreditCard,
   BookOpen, FileText, History, Shield, Plug, UserCheck,
   User, Printer, Save, Plus,
-  RefreshCw, SlidersHorizontal, SlidersVertical,
-  MoreVertical, Eye, Pencil, Trash2, PanelLeftClose, PanelLeftOpen,
+  Trash2, PanelLeftClose, PanelLeftOpen,
+  EllipsisVertical,
 } from "lucide-react"
 import { Button }    from "@/components/ui/button"
 import { Badge }     from "@/components/ui/badge"
-import { Checkbox }  from "@/components/ui/checkbox"
 import { Label }     from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { TopbarBar, TopbarBarMobile } from "./topbar"
 import { useScreenMode } from "../screen-mode-context"
 import { cn } from "@/lib/utils"
@@ -228,159 +226,44 @@ const HOLIDAYS: Holiday[] = [
   { id: "3", description: "Navidad",                      date: "2025-12-25", isWorkday: false, isRecurring: false },
 ]
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Columns ──────────────────────────────────────────────────────────────────
 
-function BoolBadge({ value, size = "default" }: { value: boolean; size?: "default" | "sm" }) {
-  return (
-    <Badge variant={value ? "success" : "destructive"} size={size}>
-      {value ? "Sí" : "No"}
-    </Badge>
-  )
-}
+const COLUMNS: ColumnDef<Holiday>[] = [
+  {
+    accessorKey: "description",
+    header: "Descripción",
+    cell: ({ getValue }) => (
+      <span className="font-medium">{getValue() as string}</span>
+    ),
+  },
+  {
+    accessorKey: "date",
+    header: "Fecha",
+    cell: ({ getValue }) => (
+      <span className="tabular-nums text-muted-foreground">{getValue() as string}</span>
+    ),
+  },
+  {
+    accessorKey: "isWorkday",
+    header: "Día laboral",
+    cell: ({ getValue }) => {
+      const v = getValue() as boolean
+      return <Badge variant={v ? "success" : "destructive"}>{v ? "Sí" : "No"}</Badge>
+    },
+  },
+  {
+    accessorKey: "isRecurring",
+    header: "Recurrente",
+    cell: ({ getValue }) => {
+      const v = getValue() as boolean
+      return <Badge variant={v ? "success" : "destructive"}>{v ? "Sí" : "No"}</Badge>
+    },
+  },
+]
 
-// ─── Vista mobile: lista expandible de feriados ───────────────────────────────
+// ─── Calendario card ──────────────────────────────────────────────────────────
 
-function MobileFieldRow({ label, value, children }: {
-  label: string; value?: string; children?: React.ReactNode
-}) {
-  return (
-    <div className="flex gap-1.5 min-w-0 items-center">
-      <span className="text-xs font-medium text-muted-foreground shrink-0">{label}:</span>
-      {children ?? <span className="text-xs text-foreground truncate">{value}</span>}
-    </div>
-  )
-}
-
-function HolidaysMobileList({
-  rows, selected, onToggle, onToggleAll,
-}: {
-  rows:        Holiday[]
-  selected:    Set<string>
-  onToggle:    (id: string) => void
-  onToggleAll: () => void
-}) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
-
-  function toggleExpand(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
-  }
-
-  return (
-    <>
-      {/* Barra superior: select-all + papelera */}
-      <div className="flex items-center gap-2 px-3 h-12 border-b shrink-0">
-        <Checkbox
-          checked={selected.size > 0 ? "indeterminate" : false}
-          onCheckedChange={onToggleAll}
-          aria-label="Seleccionar todos"
-        />
-        <span className="text-sm text-muted-foreground flex-1">
-          {selected.size > 0
-            ? `${selected.size} seleccionado${selected.size > 1 ? "s" : ""}`
-            : "Seleccionar todos"
-          }
-        </span>
-        {selected.size > 0 && (
-          <Button variant="ghost" size="icon-sm" aria-label="Eliminar seleccionados">
-            <Trash2 className="size-4 text-destructive" />
-          </Button>
-        )}
-      </div>
-
-      <ScrollArea className="flex-1 min-h-0">
-        <div className="flex flex-col">
-          {rows.map((h, i) => {
-            const isExpanded = expanded.has(h.id)
-            return (
-              <div key={h.id}>
-                <div
-                  className={cn(
-                    "flex gap-2 px-3 py-2.5 cursor-pointer transition-colors",
-                    selected.has(h.id) && "bg-primary/5",
-                  )}
-                  onClick={() => toggleExpand(h.id)}
-                >
-                  {/* Checkbox */}
-                  <div className="pt-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selected.has(h.id)}
-                      onCheckedChange={() => onToggle(h.id)}
-                    />
-                  </div>
-
-                  {/* Contenido */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-1">
-                    <p className="text-sm font-semibold text-foreground truncate">{h.description}</p>
-                    <MobileFieldRow label="Fecha" value={h.date} />
-                    <MobileFieldRow label="Recurrente">
-                      <BoolBadge value={h.isRecurring} size="sm" />
-                    </MobileFieldRow>
-
-                    {/* Expandido animado con grid-rows */}
-                    <div className={cn(
-                      "grid transition-[grid-template-rows] duration-300 ease-out",
-                      isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-                    )}>
-                      <div className="overflow-hidden">
-                        <div className="flex flex-col gap-1">
-                          <MobileFieldRow label="Día laboral">
-                            <BoolBadge value={h.isWorkday} size="sm" />
-                          </MobileFieldRow>
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-muted-foreground/50">
-                      {isExpanded ? "Toca para ver menos" : "Toca para ver más"}
-                    </p>
-                  </div>
-
-                  {/* Elipsis */}
-                  <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm" aria-label="Acciones">
-                          <MoreVertical className="size-3.5 text-foreground" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Eye className="size-4 text-muted-foreground" />
-                          Ver feriado
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive">
-                          <Trash2 className="size-4 text-destructive" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-                {i < rows.length - 1 && <Separator />}
-              </div>
-            )
-          })}
-        </div>
-      </ScrollArea>
-    </>
-  )
-}
-
-// ─── Calendario card (tabla + header + footer anclado) ────────────────────────
-
-function CalendarioCard({
-  selected, allSelected, onToggleRow, onToggleAll, className,
-}: {
-  selected:    Set<string>
-  allSelected: boolean
-  onToggleRow: (id: string) => void
-  onToggleAll: () => void
-  className?:  string
-}) {
+function CalendarioCard({ className, isMobile }: { className?: string; isMobile: boolean }) {
   return (
     <div className={cn("rounded-lg border bg-background overflow-hidden flex flex-col", className)}>
 
@@ -401,70 +284,48 @@ function CalendarioCard({
 
       <Separator />
 
-      {/* Header sección Días festivos */}
-      <div className="shrink-0 flex items-center justify-between px-4 py-3">
-        <span className="text-sm font-medium text-foreground">Días festivos</span>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon-sm" aria-label="Recargar">
-            <RefreshCw className="size-4" />
-          </Button>
-          <Button variant="ghost" size="icon-sm" aria-label="Filtrar columnas">
-            <SlidersHorizontal className="size-4" />
-          </Button>
-          <Button variant="ghost" size="icon-sm" aria-label="Configurar">
-            <SlidersVertical className="size-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Tabla */}
-      <ScrollArea className="flex-1 min-h-0" horizontal>
-        <Table wrapperClassName="min-w-max">
-          <TableHeader className="sticky top-0 z-10 bg-background">
-            <TableRow>
-              <TableHead className="w-12 min-w-12 pl-4 pr-2">
-                <Checkbox checked={allSelected} onCheckedChange={onToggleAll} aria-label="Seleccionar todos" />
-              </TableHead>
-              <TableHead className="w-20 min-w-20">Acciones</TableHead>
-              <TableHead>Descripción</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead className="text-center">Día laboral</TableHead>
-              <TableHead className="text-center">Recurrente</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {HOLIDAYS.map((h) => (
-              <TableRow key={h.id} data-state={selected.has(h.id) ? "selected" : undefined}>
-                <TableCell className="pl-4 pr-2">
-                  <Checkbox checked={selected.has(h.id)} onCheckedChange={() => onToggleRow(h.id)} aria-label={`Seleccionar ${h.description}`} />
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-0.5">
-                    <Button variant="ghost" size="icon-sm" aria-label="Ver"><Eye className="size-3.5 text-foreground" /></Button>
-                    <Button variant="ghost" size="icon-sm" aria-label="Editar"><Pencil className="size-3.5 text-foreground" /></Button>
-                    <Button variant="ghost" size="icon-sm" aria-label="Eliminar"><Trash2 className="size-3.5 text-foreground" /></Button>
-                  </div>
-                </TableCell>
-                <TableCell className="font-medium">{h.description}</TableCell>
-                <TableCell className="text-muted-foreground tabular-nums">{h.date}</TableCell>
-                <TableCell className="text-center"><BoolBadge value={h.isWorkday} /></TableCell>
-                <TableCell className="text-center"><BoolBadge value={h.isRecurring} /></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </ScrollArea>
-
-      {/* Footer anclado */}
-      <div className="shrink-0 border-t bg-muted/50 p-3 flex items-center justify-between">
-        <span className="text-xs text-muted-foreground font-normal">
-          Mostrando <span className="font-medium text-foreground">{HOLIDAYS.length}</span> de{" "}
-          <span className="font-medium text-foreground">{HOLIDAYS.length}</span>
-        </span>
-        <Button size="sm">
-          <Plus className="size-3.5" />
-          Nuevo
-        </Button>
+      {/* DataTable días festivos */}
+      <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+        <DataTable
+          columns={COLUMNS}
+          data={HOLIDAYS}
+          border={false}
+          rowSelection
+          globalFilter
+          columnToggle
+          rowDensity
+          onAdd={() => {}}
+          onRefresh={() => {}}
+          rowActions={(_row) => (
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon-xs" aria-label="Acciones">
+                      <EllipsisVertical className="size-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Acciones</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>
+                  Ver feriado
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  Editar feriado
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive focus:text-destructive">
+                  <Trash2 className="size-4 text-destructive" />
+                  Eliminar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          onBulkDelete={() => {}}
+          mobileView={isMobile}
+        />
       </div>
 
     </div>
@@ -475,28 +336,12 @@ function CalendarioCard({
 
 export function CalendarioLaboral() {
   const [activeNav, setActiveNav] = useState("calendar")
-  const [selected,  setSelected]  = useState<Set<string>>(new Set())
   const screenMode = useScreenMode()
   const [navMinimized, setNavMinimized] = useState(screenMode === "tablet")
   useEffect(() => { setNavMinimized(screenMode === "tablet") }, [screenMode])
   const isMobile   = screenMode === "mobile"
   const isDesktop  = screenMode === "desktop"
   const isCompact  = screenMode !== "desktop"
-
-  function toggleRow(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  function toggleAll() {
-    setSelected((prev) =>
-      prev.size === HOLIDAYS.length ? new Set() : new Set(HOLIDAYS.map((h) => h.id))
-    )
-  }
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-background">
@@ -532,12 +377,7 @@ export function CalendarioLaboral() {
                   </div>
                 ))}
               </div>
-              <HolidaysMobileList
-                rows={HOLIDAYS}
-                selected={selected}
-                onToggle={toggleRow}
-                onToggleAll={toggleAll}
-              />
+              <CalendarioCard isMobile={true} className="flex-1 min-w-0 !rounded-none !border-0" />
             </div>
           </div>
         ) : (
@@ -558,11 +398,7 @@ export function CalendarioLaboral() {
                   </div>
                 ))}
               </div>
-              <CalendarioCard
-                selected={selected} allSelected={selected.size === HOLIDAYS.length}
-                onToggleRow={toggleRow} onToggleAll={toggleAll}
-                className="flex-1 min-w-0 !rounded-none !border-0"
-              />
+              <CalendarioCard isMobile={false} className="flex-1 min-w-0 !rounded-none !border-0" />
             </div>
           </div>
         )}

@@ -68,6 +68,47 @@ function hasValue(mode: DatePickerMode, value: DatePickerValue): boolean {
   return true
 }
 
+function DatePickerCalendar({
+  mode, value, onChange, draftRange, onRangeDayClick, setOpen,
+}: {
+  mode:             DatePickerMode
+  value:            DatePickerValue
+  onChange:         DatePickerProps["onChange"]
+  draftRange:       DateRange | undefined
+  onRangeDayClick:  (day: Date) => void
+  setOpen:          (v: boolean) => void
+}) {
+  if (mode === "single") {
+    return (
+      <Calendar
+        mode="single"
+        selected={value as Date}
+        onSelect={(d) => { onChange?.(d); if (d) setOpen(false) }}
+        autoFocus
+      />
+    )
+  }
+  if (mode === "multiple") {
+    return (
+      <Calendar
+        mode="multiple"
+        selected={value as Date[]}
+        onSelect={(d) => onChange?.(d)}
+        autoFocus
+      />
+    )
+  }
+  return (
+    <Calendar
+      mode="range"
+      selected={draftRange}
+      onDayClick={onRangeDayClick}
+      numberOfMonths={2}
+      autoFocus
+    />
+  )
+}
+
 export function DatePicker({
   mode        = "single",
   value,
@@ -160,31 +201,14 @@ export function DatePicker({
         </PopoverTrigger>
 
         <PopoverContent className="w-auto p-0" align="start">
-          {mode === "single" && (
-            <Calendar
-              mode="single"
-              selected={value as Date}
-              onSelect={(d) => { onChange?.(d); if (d) setOpen(false) }}
-              autoFocus
-            />
-          )}
-          {mode === "multiple" && (
-            <Calendar
-              mode="multiple"
-              selected={value as Date[]}
-              onSelect={(d) => onChange?.(d)}
-              autoFocus
-            />
-          )}
-          {mode === "range" && (
-            <Calendar
-              mode="range"
-              selected={draftRange}
-              onDayClick={handleRangeDayClick}
-              numberOfMonths={2}
-              autoFocus
-            />
-          )}
+          <DatePickerCalendar
+            mode={mode}
+            value={value}
+            onChange={onChange}
+            draftRange={draftRange}
+            onRangeDayClick={handleRangeDayClick}
+            setOpen={setOpen}
+          />
         </PopoverContent>
       </Popover>
     </div>

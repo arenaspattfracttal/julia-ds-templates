@@ -5,21 +5,18 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Settings, Users, Calendar, LayoutGrid, CreditCard,
   BookOpen, FileText, History, Shield, Plug, UserCheck,
-  User, Printer, Save, Plus, Eye, Pencil, Trash2,
-  MoreVertical, PanelLeftClose, PanelLeftOpen,
+  User, Printer, Save, Eye, Pencil, Trash2,
+  EllipsisVertical, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react"
 import { Button }     from "@/components/ui/button"
 import { Badge }      from "@/components/ui/badge"
-import { Checkbox }   from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator }  from "@/components/ui/separator"
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { TopbarBar, TopbarBarMobile } from "./topbar"
 import { useScreenMode } from "../screen-mode-context"
 import { cn }        from "@/lib/utils"
@@ -266,245 +263,118 @@ function rolBadgeVariant(rol: Rol) {
   return "outline" as const
 }
 
-// ─── Vista mobile: lista expandible ──────────────────────────────────────────
+// ─── Columnas DataTable ───────────────────────────────────────────────────────
 
-function MobileFieldRow({ label, value, mono = false, children }: {
-  label: string; value?: string; mono?: boolean; children?: React.ReactNode
-}) {
-  return (
-    <div className="flex gap-1.5 min-w-0 items-center">
-      <span className="text-xs font-medium text-muted-foreground shrink-0">{label}:</span>
-      {children ?? <span className={cn("text-xs text-foreground truncate", mono && "font-mono")}>{value}</span>}
-    </div>
-  )
-}
-
-function UsuariosMobileList({
-  rows, selected, onToggle, onToggleAll,
-}: {
-  rows:        Usuario[]
-  selected:    Set<number>
-  onToggle:    (id: number) => void
-  onToggleAll: () => void
-}) {
-  const [expanded, setExpanded] = useState<Set<number>>(new Set())
-
-  function toggleExpand(id: number) {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
-  }
-
-  return (
-    <>
-      {/* Barra superior: select-all + papelera */}
-      <div className="flex items-center gap-2 px-3 h-12 border-b shrink-0">
-        <Checkbox
-          checked={selected.size > 0 ? "indeterminate" : false}
-          onCheckedChange={onToggleAll}
-          aria-label="Seleccionar todos"
-        />
-        <span className="text-sm text-muted-foreground flex-1">
-          {selected.size > 0
-            ? `${selected.size} seleccionado${selected.size > 1 ? "s" : ""}`
-            : "Seleccionar todos"
-          }
-        </span>
-        {selected.size > 0 && (
-          <Button variant="ghost" size="icon-sm" aria-label="Eliminar seleccionados">
-            <Trash2 className="size-4 text-destructive" />
-          </Button>
-        )}
-      </div>
-
-      <ScrollArea className="flex-1 min-h-0">
-        <div className="flex flex-col">
-          {rows.map((usuario, i) => {
-            const isExpanded = expanded.has(usuario.id)
-            return (
-              <div key={usuario.id}>
-                <div
-                  className={cn(
-                    "flex gap-2 px-3 py-2.5 cursor-pointer transition-colors",
-                    selected.has(usuario.id) && "bg-primary/5",
-                  )}
-                  onClick={() => toggleExpand(usuario.id)}
-                >
-                  {/* Checkbox */}
-                  <div className="pt-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selected.has(usuario.id)}
-                      onCheckedChange={() => onToggle(usuario.id)}
-                    />
-                  </div>
-
-                  {/* Contenido */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-1">
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {usuario.nombre} {usuario.apellido}
-                    </p>
-                    <MobileFieldRow label="Email" value={usuario.email} />
-                    <MobileFieldRow label="Rol">
-                      <Badge variant={rolBadgeVariant(usuario.rol)} size="sm">{usuario.rol}</Badge>
-                    </MobileFieldRow>
-
-                    {/* Expandido animado con grid-rows */}
-                    <div className={cn(
-                      "grid transition-[grid-template-rows] duration-300 ease-out",
-                      isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-                    )}>
-                      <div className="overflow-hidden">
-                        <div className="flex flex-col gap-1">
-                          <MobileFieldRow label="Estado">
-                            <Badge variant={estadoBadgeVariant(usuario.estado)} size="sm">{estadoBadgeLabel(usuario.estado)}</Badge>
-                          </MobileFieldRow>
-                          <MobileFieldRow label="Módulos">
-                            <Badge variant="outline" size="sm" className="tabular-nums">{usuario.modulos}</Badge>
-                          </MobileFieldRow>
-                          <MobileFieldRow label="Último acceso"  value={usuario.ultimoAcceso} />
-                          <MobileFieldRow label="Fecha creación" value={usuario.fechaCreacion} />
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-muted-foreground/50">
-                      {isExpanded ? "Toca para ver menos" : "Toca para ver más"}
-                    </p>
-                  </div>
-
-                  {/* Elipsis */}
-                  <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm" aria-label="Acciones">
-                          <MoreVertical className="size-3.5 text-foreground" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Eye className="size-4 text-muted-foreground" />
-                          Ver usuario
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Pencil className="size-4 text-muted-foreground" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive">
-                          <Trash2 className="size-4 text-destructive" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-                {i < rows.length - 1 && <Separator />}
-              </div>
-            )
-          })}
-        </div>
-      </ScrollArea>
-    </>
-  )
-}
-
-// ─── Tabla card ──────────────────────────────────────────────────────────────
-
-function TablaCard({
-  selected, allSelected, onToggleRow, onToggleAll, className,
-}: {
-  selected: Set<number>
-  allSelected: boolean
-  onToggleRow: (id: number) => void
-  onToggleAll: () => void
-  className?: string
-}) {
-  return (
-    <div className={cn("rounded-lg border bg-background overflow-hidden flex flex-col", className)}>
-      <ScrollArea className="flex-1 min-h-0" horizontal>
-        <Table wrapperClassName="min-w-max">
-          <TableHeader className="sticky top-0 z-10 bg-background">
-            <TableRow>
-              <TableHead className="w-12 min-w-12 pl-4 pr-2">
-                <Checkbox checked={allSelected} onCheckedChange={onToggleAll} aria-label="Seleccionar todos" />
-              </TableHead>
-              <TableHead className="w-20 min-w-20">Acciones</TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Apellido</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Rol</TableHead>
-              <TableHead className="text-center">Estado</TableHead>
-              <TableHead className="text-center">Módulos</TableHead>
-              <TableHead>Último acceso</TableHead>
-              <TableHead>Fecha creación</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {USUARIOS.map((usuario) => (
-              <TableRow key={usuario.id} data-state={selected.has(usuario.id) ? "selected" : undefined}>
-                <TableCell className="pl-4 pr-2">
-                  <Checkbox checked={selected.has(usuario.id)} onCheckedChange={() => onToggleRow(usuario.id)} aria-label={`Seleccionar ${usuario.nombre}`} />
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-0.5">
-                    <Button variant="ghost" size="icon-sm" aria-label="Ver"><Eye className="size-3.5 text-foreground" /></Button>
-                    <Button variant="ghost" size="icon-sm" aria-label="Editar"><Pencil className="size-3.5 text-foreground" /></Button>
-                    <Button variant="ghost" size="icon-sm" aria-label="Eliminar"><Trash2 className="size-3.5 text-foreground" /></Button>
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm font-medium">{usuario.nombre}</TableCell>
-                <TableCell className="text-sm">{usuario.apellido}</TableCell>
-                <TableCell className="text-xs text-muted-foreground max-w-52 truncate">{usuario.email}</TableCell>
-                <TableCell><Badge variant={rolBadgeVariant(usuario.rol)}>{usuario.rol}</Badge></TableCell>
-                <TableCell className="text-center"><Badge variant={estadoBadgeVariant(usuario.estado)}>{estadoBadgeLabel(usuario.estado)}</Badge></TableCell>
-                <TableCell className="text-center"><Badge variant="outline" className="font-mono tabular-nums">{usuario.modulos}</Badge></TableCell>
-                <TableCell className="text-sm tabular-nums text-muted-foreground">{usuario.ultimoAcceso}</TableCell>
-                <TableCell className="text-sm tabular-nums text-muted-foreground">{usuario.fechaCreacion}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </ScrollArea>
-      <div className="shrink-0 border-t bg-muted/50 p-3 flex items-center justify-between">
-        <span className="text-xs text-muted-foreground font-normal">
-          Mostrando <span className="font-medium text-foreground">20</span> de{" "}
-          <span className="font-medium text-foreground">20</span>
-        </span>
-        <Button size="sm"><Plus className="size-3.5" />Nuevo</Button>
-      </div>
-    </div>
-  )
-}
+const COLUMNS: ColumnDef<Usuario>[] = [
+  {
+    accessorKey: "nombre",
+    header: "Nombre",
+    cell: ({ getValue }) => (
+      <span className="text-sm font-medium">{getValue() as string}</span>
+    ),
+  },
+  {
+    accessorKey: "apellido",
+    header: "Apellido",
+    cell: ({ getValue }) => (
+      <span className="text-sm">{getValue() as string}</span>
+    ),
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
+    cell: ({ getValue }) => (
+      <span className="text-xs text-muted-foreground font-mono">{getValue() as string}</span>
+    ),
+  },
+  {
+    accessorKey: "rol",
+    header: "Rol",
+    cell: ({ getValue }) => {
+      const v = getValue() as Rol
+      return <Badge variant={rolBadgeVariant(v)}>{v}</Badge>
+    },
+  },
+  {
+    accessorKey: "estado",
+    header: "Estado",
+    cell: ({ getValue }) => {
+      const v = getValue() as EstadoUsuario
+      return <Badge variant={estadoBadgeVariant(v)}>{estadoBadgeLabel(v)}</Badge>
+    },
+  },
+  {
+    accessorKey: "modulos",
+    header: "Módulos",
+    cell: ({ getValue }) => (
+      <Badge variant="outline" className="tabular-nums">{getValue() as number}</Badge>
+    ),
+  },
+  {
+    accessorKey: "ultimoAcceso",
+    header: "Último acceso",
+    cell: ({ getValue }) => (
+      <span className="text-sm tabular-nums text-muted-foreground">{getValue() as string}</span>
+    ),
+  },
+  {
+    accessorKey: "fechaCreacion",
+    header: "Fecha creación",
+    cell: ({ getValue }) => (
+      <span className="text-sm tabular-nums text-muted-foreground">{getValue() as string}</span>
+    ),
+  },
+]
 
 // ─── Pantalla ─────────────────────────────────────────────────────────────────
 
 export function CuentasUsuarios() {
   const [activeNav, setActiveNav] = useState("users")
-  const [selected,  setSelected]  = useState<Set<number>>(new Set())
   const screenMode = useScreenMode()
   const [navMinimized, setNavMinimized] = useState(screenMode === "tablet")
   useEffect(() => { setNavMinimized(screenMode === "tablet") }, [screenMode])
   const isMobile   = screenMode === "mobile"
-  const isDesktop  = screenMode === "desktop"
   const isCompact  = screenMode !== "desktop"
 
-  function toggleRow(id: number) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  function toggleAll() {
-    setSelected((prev) =>
-      prev.size === USUARIOS.length ? new Set() : new Set(USUARIOS.map((u) => u.id))
-    )
-  }
-
-  const allSelected = selected.size === USUARIOS.length
+  const dataTableContent = (
+    <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+      <DataTable
+        columns={COLUMNS}
+        data={USUARIOS}
+        border={false}
+        resizable
+        reorder
+        rowSelection
+        globalFilter
+        columnToggle
+        rowDensity
+        onAdd={() => {}}
+        onRefresh={() => {}}
+        rowActions={(_row) => (
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon-xs" aria-label="Acciones">
+                    <EllipsisVertical className="size-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="left" avoidCollisions={false}>Acciones</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem><Eye className="size-3.5" />Ver</DropdownMenuItem>
+              <DropdownMenuItem><Pencil className="size-3.5" />Editar</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive"><Trash2 className="size-3.5" />Eliminar</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        onBulkDelete={() => {}}
+        mobileView={isMobile}
+      />
+    </div>
+  )
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-background">
@@ -540,12 +410,7 @@ export function CuentasUsuarios() {
                   </div>
                 ))}
               </div>
-              <UsuariosMobileList
-                rows={USUARIOS}
-                selected={selected}
-                onToggle={toggleRow}
-                onToggleAll={toggleAll}
-              />
+              {dataTableContent}
             </div>
           </div>
         ) : (
@@ -566,11 +431,7 @@ export function CuentasUsuarios() {
                   </div>
                 ))}
               </div>
-              <TablaCard
-                selected={selected} allSelected={allSelected}
-                onToggleRow={toggleRow} onToggleAll={toggleAll}
-                className="flex-1 min-w-0 !rounded-none !border-0"
-              />
+              {dataTableContent}
             </div>
           </div>
         )}

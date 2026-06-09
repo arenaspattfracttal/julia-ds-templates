@@ -47,21 +47,54 @@ function DialogOverlay({
   )
 }
 
+export type DialogAnimationVariant = "zoom" | "fade" | "slide-up" | "slide-down"
+
+const ANIM_IN: Record<DialogAnimationVariant, string> = {
+  zoom:          "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
+  fade:          "data-open:animate-in data-open:fade-in-0",
+  "slide-up":    "data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-bottom-6",
+  "slide-down":  "data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-top-6",
+}
+
+const ANIM_OUT: Record<DialogAnimationVariant, string> = {
+  zoom:          "data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+  fade:          "data-closed:animate-out data-closed:fade-out-0",
+  "slide-up":    "data-closed:animate-out data-closed:fade-out-0 data-closed:slide-out-to-bottom-6",
+  "slide-down":  "data-closed:animate-out data-closed:fade-out-0 data-closed:slide-out-to-top-6",
+}
+
+export type DialogSize = "sm" | "default" | "lg" | "xl"
+
+const SIZE_CLASS: Record<DialogSize, string> = {
+  sm:      "sm:max-w-sm",
+  default: "sm:max-w-md",
+  lg:      "sm:max-w-lg",
+  xl:      "sm:max-w-xl",
+}
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  animationVariant = "zoom",
+  size = "default",
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  animationVariant?: DialogAnimationVariant
+  size?: DialogSize
 }) {
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        data-size={size}
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 rounded-xl bg-popover p-6 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-md data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 rounded-xl bg-popover p-6 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none",
+          SIZE_CLASS[size],
+          ANIM_IN[animationVariant],
+          ANIM_OUT[animationVariant],
           className
         )}
         {...props}

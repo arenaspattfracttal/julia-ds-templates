@@ -5,7 +5,13 @@
       "name": "julia-ds-templates",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 5174
+      "port": 5173
+    },
+    {
+      "name": "julia-design-system",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/patriciaarenas/Documents/Julia-Design-System && npm run dev -- --port 5175"],
+      "port": 5175
     }
   ]
 }

@@ -6,6 +6,7 @@ import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { toggleVariants } from "@/components/ui/toggle"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 const ToggleGroupContext = React.createContext<
   VariantProps<typeof toggleVariants> & {
@@ -53,12 +54,15 @@ function ToggleGroupItem({
   children,
   variant,
   size,
+  tooltip,
   ...props
 }: React.ComponentProps<typeof ToggleGroupPrimitive.Item> &
-  VariantProps<typeof toggleVariants>) {
+  VariantProps<typeof toggleVariants> & {
+    tooltip?: string
+  }) {
   const context = React.useContext(ToggleGroupContext)
 
-  return (
+  const item = (
     <ToggleGroupPrimitive.Item
       data-slot="toggle-group-item"
       data-variant={context.variant || variant}
@@ -77,6 +81,14 @@ function ToggleGroupItem({
     >
       {children}
     </ToggleGroupPrimitive.Item>
+  )
+
+  if (!tooltip) return item
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{item}</TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
   )
 }
 

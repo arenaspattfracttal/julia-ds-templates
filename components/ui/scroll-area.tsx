@@ -11,6 +11,7 @@ function ScrollArea({
   scrollbarSize = "thin",
   viewportRef,
   horizontal = false,
+  horizontalInset,
   ...props
 }: React.ComponentProps<typeof ScrollAreaPrimitive.Root> & {
   /** Grosor de la barra de scroll: "default" (10px) | "thin" (6px, minimalista) */
@@ -19,6 +20,8 @@ function ScrollArea({
   viewportRef?: React.Ref<HTMLDivElement>
   /** Habilita la barra de scroll horizontal además de la vertical */
   horizontal?: boolean
+  /** Margen interior del scrollbar horizontal para evitar superposición con columnas sticky */
+  horizontalInset?: { left?: number; right?: number }
 }) {
   return (
     <ScrollAreaPrimitive.Root
@@ -36,7 +39,16 @@ function ScrollArea({
         {children}
       </ScrollAreaPrimitive.Viewport>
       <ScrollBar scrollbarSize={scrollbarSize} />
-      {horizontal && <ScrollBar scrollbarSize={scrollbarSize} orientation="horizontal" />}
+      {horizontal && (
+        <ScrollBar
+          scrollbarSize={scrollbarSize}
+          orientation="horizontal"
+          style={horizontalInset ? {
+            ...(horizontalInset.left  ? { paddingLeft:  horizontalInset.left  } : {}),
+            ...(horizontalInset.right ? { paddingRight: horizontalInset.right } : {}),
+          } : undefined}
+        />
+      )}
       <ScrollAreaPrimitive.Corner />
     </ScrollAreaPrimitive.Root>
   )
@@ -46,9 +58,11 @@ function ScrollBar({
   className,
   orientation = "vertical",
   scrollbarSize = "thin",
+  style,
   ...props
 }: React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar> & {
   scrollbarSize?: "default" | "thin"
+  style?: React.CSSProperties
 }) {
   const isThin = scrollbarSize === "thin"
   return (
@@ -56,6 +70,7 @@ function ScrollBar({
       data-slot="scroll-area-scrollbar"
       data-orientation={orientation}
       orientation={orientation}
+      style={style}
       className={cn(
         "flex touch-none select-none",
         orientation === "vertical" && [

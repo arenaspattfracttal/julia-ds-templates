@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Search, LayoutTemplate, Settings, Wrench, Package, BarChart3 } from "lucide-react"
+import { LayoutTemplate, Settings, Wrench, Package, BarChart3 } from "lucide-react"
 import { ConfiguracionGeneral } from "./configuracion/ConfiguracionGeneral"
 import { CuentasUsuarios } from "./configuracion/CuentasUsuarios"
 import { CalendarioLaboral } from "./configuracion/CalendarioLaboral"
+import { Modulos }           from "./configuracion/Modulos"
 import { ConfiguracionModule } from "./configuracion/ConfiguracionModule"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -73,6 +74,15 @@ const TEMPLATES: TemplateEntry[] = [
     component:   CalendarioLaboral,
   },
   {
+    id:          "modulos",
+    module:      "configuracion",
+    screen:      "Módulos",
+    title:       "Módulos",
+    description: "Configuración de campos obligatorios por tipo y módulo: Ubicaciones, Equipos, Herramientas y Repuestos.",
+    status:      "ready",
+    component:   Modulos,
+  },
+  {
     id:          "seguridad",
     module:      "configuracion",
     screen:      "Seguridad",
@@ -110,15 +120,6 @@ const TEMPLATES: TemplateEntry[] = [
   },
 ]
 
-// ─── Colores de módulo ────────────────────────────────────────────────────────
-
-const MODULE_COLORS: Record<string, string> = {
-  configuracion: "bg-teal-100   text-teal-800   dark:bg-teal-900   dark:text-teal-200",
-  mantenimiento: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  activos:       "bg-blue-100   text-blue-800   dark:bg-blue-900   dark:text-blue-200",
-  reportes:      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-}
-
 // ─── Gallery ──────────────────────────────────────────────────────────────────
 
 export function TemplateGallery() {
@@ -142,7 +143,7 @@ export function TemplateGallery() {
             ← Julia DS Templates
           </button>
           <span className="text-xs text-muted-foreground">/</span>
-          <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${MODULE_COLORS[activeTemplate.module] ?? ""}`}>
+          <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-primary/10 text-primary">
             {mod?.label}
           </span>
           <span className="text-xs text-muted-foreground">/</span>
@@ -170,31 +171,29 @@ export function TemplateGallery() {
   const readyCount = TEMPLATES.filter(t => t.status === "ready").length
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
 
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+      <header className="border-b bg-background shrink-0">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <LayoutTemplate className="h-6 w-6 text-primary" />
+            <LayoutTemplate className="size-5 text-primary" />
             <div>
-              <h1 className="text-lg font-semibold leading-none">Julia DS Templates</h1>
+              <h1 className="text-base font-semibold leading-none">Julia DS Templates</h1>
               <p className="text-xs text-muted-foreground mt-1">Fracttal · React 19 + Tailwind v4 + shadcn/ui</p>
             </div>
           </div>
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar template..."
-              className="pl-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+          <Input
+            type="search"
+            placeholder="Buscar template..."
+            className="w-56"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
 
         {/* Filtros de módulo */}
-        <div className="max-w-6xl mx-auto px-6 pb-3 flex items-center gap-2 flex-wrap">
+        <div className="max-w-5xl mx-auto px-6 pb-3 flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setActiveModule(null)}
             className={`text-xs px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
@@ -225,83 +224,87 @@ export function TemplateGallery() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        <div className="mb-6">
-          <p className="text-sm text-muted-foreground">
+      {/* Contenido scrollable */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-5xl mx-auto px-6 py-5">
+
+          <p className="text-xs text-muted-foreground mb-5">
             <span className="font-medium text-foreground">{readyCount}</span> listos ·{" "}
             <span className="font-medium text-foreground">{TEMPLATES.length - readyCount}</span> en progreso ·{" "}
             Añade los tuyos en <code className="text-xs bg-muted px-1 py-0.5 rounded">templates/&lt;módulo&gt;/</code>
           </p>
-        </div>
 
-        {filtered.length === 0 ? (
-          <div className="text-center py-20 text-muted-foreground">
-            <LayoutTemplate className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <p>No hay templates que coincidan con &quot;{search}&quot;</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-10">
-            {moduleIds.map(modId => {
-              const mod        = MODULES.find(m => m.id === modId)
-              const ModIcon    = mod?.icon ?? LayoutTemplate
-              const modItems   = filtered.filter(t => t.module === modId)
-              if (!modItems.length) return null
-              return (
-                <section key={modId}>
-                  {/* Cabecera de módulo */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg ${MODULE_COLORS[modId] ?? "bg-muted text-foreground"}`}>
-                      <ModIcon className="size-4" />
-                      {mod?.label ?? modId}
+          {filtered.length === 0 ? (
+            <div className="text-center py-20 text-muted-foreground">
+              <LayoutTemplate className="size-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">No hay templates que coincidan con &quot;{search}&quot;</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-8">
+              {moduleIds.map(modId => {
+                const mod        = MODULES.find(m => m.id === modId)
+                const ModIcon    = mod?.icon ?? LayoutTemplate
+                const modItems   = filtered.filter(t => t.module === modId)
+                if (!modItems.length) return null
+                return (
+                  <section key={modId}>
+                    {/* Cabecera de módulo */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold px-3 py-1 rounded-lg bg-muted text-foreground">
+                        <ModIcon className="size-3.5" />
+                        {mod?.label ?? modId}
+                      </div>
+                      <Separator className="flex-1" />
+                      <span className="text-xs text-muted-foreground">
+                        {modItems.filter(t => t.status === "ready").length} / {modItems.length} listos
+                      </span>
                     </div>
-                    <Separator className="flex-1" />
-                    <span className="text-xs text-muted-foreground">
-                      {modItems.filter(t => t.status === "ready").length} / {modItems.length} listos
-                    </span>
-                  </div>
 
-                  {/* Grid de cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {modItems.map((template) => (
-                      <Card key={template.id} className="group hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">{template.screen}</p>
-                              <CardTitle className="text-base">{template.title}</CardTitle>
+                    {/* Grid de cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {modItems.map((template) => (
+                        <Card key={template.id} className="group hover:shadow-md transition-shadow flex flex-col">
+                          <CardHeader className="pb-2 pt-4 px-4">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-xs text-muted-foreground mb-0.5 truncate">{template.screen}</p>
+                                <CardTitle className="text-sm leading-snug">{template.title}</CardTitle>
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className={`shrink-0 text-[10px] px-1.5 py-0 h-5 ${
+                                  template.status === "ready"
+                                    ? "border-success text-success"
+                                    : "border-warning text-warning"
+                                }`}
+                              >
+                                {template.status === "ready" ? "Listo" : "En progreso"}
+                              </Badge>
                             </div>
-                            <Badge
+                          </CardHeader>
+                          <CardContent className="flex flex-col gap-3 pb-4 px-4 flex-1">
+                            <CardDescription className="text-xs leading-relaxed line-clamp-3">
+                              {template.description}
+                            </CardDescription>
+                            <Button
                               variant="outline"
-                              className={template.status === "ready"
-                                ? "border-green-500 text-green-600 shrink-0"
-                                : "border-orange-400 text-orange-500 shrink-0"}
+                              size="sm"
+                              className="w-full mt-auto"
+                              disabled={template.status === "wip"}
+                              onClick={() => template.status === "ready" && setActiveId(template.id)}
                             >
-                              {template.status === "ready" ? "Listo" : "En progreso"}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="flex flex-col gap-4">
-                          <CardDescription className="text-sm leading-relaxed">
-                            {template.description}
-                          </CardDescription>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            disabled={template.status === "wip"}
-                            onClick={() => template.status === "ready" && setActiveId(template.id)}
-                          >
-                            {template.status === "ready" ? "Ver template" : "Próximamente"}
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </section>
-              )
-            })}
-          </div>
-        )}
+                              {template.status === "ready" ? "Ver template" : "Próximamente"}
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </section>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </main>
     </div>
   )

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { X } from "lucide-react"
+import { X, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const BASE_CLASS =
@@ -42,8 +42,13 @@ function ClearableBase({
     if (!isControlled) setUncontrolledValue("")
   }
 
+  const isSearch = type === "search"
+
   return (
     <div className="relative flex w-full items-center">
+      {isSearch && (
+        <Search className="absolute left-2.5 size-3.5 text-muted-foreground pointer-events-none shrink-0" />
+      )}
       <input
         ref={ref}
         type={type}
@@ -52,7 +57,7 @@ function ClearableBase({
         onChange={handleChange}
         className={cn(
           BASE_CLASS,
-          type === "search" && "[&::-webkit-search-cancel-button]:hidden",
+          isSearch && "[&::-webkit-search-cancel-button]:hidden pl-8",
           showClear && "pr-8",
           className,
         )}

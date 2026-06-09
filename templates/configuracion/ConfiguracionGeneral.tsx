@@ -5,13 +5,13 @@ import {
   Settings, Users, Calendar, LayoutGrid, CreditCard,
   BookOpen, FileText, History, Shield, Plug, UserCheck,
   User, Printer, Camera, Save, Bell, MessageCircle,
-  Sparkles, PanelLeftClose, PanelLeftOpen, ChevronLeft,
+  Sparkles, PanelLeftClose, PanelLeftOpen, ChevronLeft, ImageIcon,
 } from "lucide-react"
 import { Button }      from "@/components/ui/button"
 import { Input }       from "@/components/ui/input"
 import { Label }       from "@/components/ui/label"
 import { ScrollArea }  from "@/components/ui/scroll-area"
-import { Separator }   from "@/components/ui/separator"
+import { Separator }  from "@/components/ui/separator"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge }       from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -19,6 +19,17 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Eye, Upload, Trash2 } from "lucide-react"
 import { ScreenModeProvider } from "@/components/design-system/screen-mode-context"
 import { cn } from "@/lib/utils"
 
@@ -98,25 +109,104 @@ function Topbar({ title, mode }: { title: string; mode: ScreenMode }) {
 // ─── Logo upload ──────────────────────────────────────────────────────────────
 
 function LogoUpload({ isMobile }: { isMobile: boolean }) {
+  const [imageUrl, setImageUrl]       = useState<string | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen]   = useState(false)
+  const fileInputRef                  = useRef<HTMLInputElement>(null)
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    setImageUrl(url)
+    // reset input para permitir subir el mismo archivo de nuevo
+    e.target.value = ""
+  }
+
+  function handleDelete() {
+    if (imageUrl) URL.revokeObjectURL(imageUrl)
+    setImageUrl(null)
+  }
+
   return (
-    <div className={cn(
-      "relative shrink-0 rounded-lg border border-border bg-card flex items-center justify-center overflow-hidden",
-      isMobile ? "w-full h-[180px]" : "w-[180px] h-28",
-    )}>
-      <svg viewBox="0 0 500 500" className={cn("text-primary", isMobile ? "size-[83px]" : "size-16")} aria-label="Logo Fracttal">
-        <path fill="currentColor" d="M243.57,301c-14.32,0-25.92,11.61-25.92,25.92s11.61,25.92,25.92,25.92,25.92-11.61,25.92-25.92-11.61-25.92-25.92-25.92Z"/>
-        <path fill="currentColor" d="M310.05,260.54c-15.41,0-27.89,12.48-27.89,27.89s12.48,27.89,27.89,27.89,27.89-12.48,27.89-27.89-12.48-27.89-27.89-27.89Z"/>
-        <path fill="currentColor" d="M310.05,183.59c-15.41,0-27.89,12.48-27.89,27.89s12.48,27.89,27.89,27.89,27.89-12.48,27.89-27.89-12.48-27.89-27.89-27.89Z"/>
-        <path fill="currentColor" d="M243.57,147.11c-14.3,0-25.92,11.62-25.92,25.92s11.62,25.92,25.92,25.92,25.92-11.62,25.92-25.92-11.62-25.92-25.92-25.92Z"/>
-        <path fill="currentColor" d="M177.08,233.8c12.34,0,22.32-9.98,22.32-22.32s-9.99-22.32-22.32-22.32-22.32,9.98-22.32,22.32,9.99,22.32,22.32,22.32Z"/>
-        <path fill="currentColor" d="M177.08,310.75c12.34,0,22.32-9.98,22.32-22.32s-9.99-22.32-22.32-22.32-22.32,9.98-22.32,22.32,9.99,22.32,22.32,22.32Z"/>
-        <path fill="currentColor" d="M310.05,338.97c-14.3,0-25.92,11.62-25.92,25.92s11.62,25.92,25.92,25.92,25.92-11.62,25.92-25.92-11.62-25.92-25.92-25.92Z"/>
-        <path fill="currentColor" d="M376.25,220.07c-16.52,0-29.91,13.39-29.91,29.9s13.39,29.91,29.91,29.91,29.91-13.39,29.91-29.91-13.39-29.9-29.91-29.9Z"/>
-      </svg>
-      <Button type="button" size="icon" className="absolute bottom-1.5 right-1.5 size-7" aria-label="Cambiar logo">
-        <Camera className="size-3.5" />
-      </Button>
-    </div>
+    <>
+      {/* Input de archivo oculto */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {/* Preview dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Logo de la empresa</DialogTitle>
+          </DialogHeader>
+          {imageUrl ? (
+            <img src={imageUrl} alt="Logo empresa" className="w-full rounded-lg object-contain max-h-72" />
+          ) : (
+            <div className="flex items-center justify-center h-40 bg-muted rounded-lg">
+              <span className="text-sm text-muted-foreground">No hay imagen cargada</span>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmar eliminar */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar imagen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará el logo de la empresa. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleDelete}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Contenedor imagen */}
+      <div className={cn(
+        "relative rounded-lg border border-border bg-card flex items-center justify-center overflow-hidden",
+        isMobile ? "w-full h-[140px]" : "w-full h-full",
+      )}>
+        {imageUrl ? (
+          <img src={imageUrl} alt="Logo empresa" className="w-full h-full object-cover" />
+        ) : (
+          <ImageIcon className={cn("text-muted-foreground/40", isMobile ? "size-16" : "size-12")} />
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" size="icon" className="absolute bottom-1.5 right-1.5 size-7" aria-label="Cambiar logo">
+              <Camera className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setPreviewOpen(true)}>
+              <Eye className="size-3.5" />
+              Ver imagen
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+              <Upload className="size-3.5" />
+              Subir imagen
+            </DropdownMenuItem>
+            <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="size-3.5" />
+              Eliminar imagen
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </>
   )
 }
 
@@ -133,7 +223,7 @@ const MAP_URL =
 
 function MapEmbed() {
   return (
-    <div className="relative rounded-lg border overflow-hidden min-h-64 h-full bg-muted">
+    <div className="relative rounded-lg border overflow-hidden min-h-[220px] bg-muted">
       <iframe
         src={MAP_URL}
         title="Ubicación en el mapa"
@@ -300,91 +390,126 @@ function SettingsNav({
   )
 }
 
+// ─── Section card ─────────────────────────────────────────────────────────────
+
+function SectionCard({
+  title, children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-3 py-4">
+      <span className="text-xs font-semibold text-foreground uppercase tracking-wider">
+        {title}
+      </span>
+      {children}
+    </div>
+  )
+}
+
 // ─── General form ─────────────────────────────────────────────────────────────
 
 export function GeneralForm({ isMobile }: { isMobile: boolean }) {
+  const cols = isMobile ? "grid-cols-1" : "grid-cols-2"
+
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="p-4">
+      <div className="w-full max-w-2xl mx-auto">
 
-      {/* 1. Identidad */}
-      <div className={cn("flex gap-3", isMobile ? "flex-col" : "items-start")}>
-        <LogoUpload isMobile={isMobile} />
-        <div className={cn("flex-1 grid gap-x-2 gap-y-1.5", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-          <Field label="Código"     value="451" />
-          <Field label="Nombre"     value="Fracttal Demo" />
-          <Field label="Email"      value="pablo.moreno@fracttal.com" />
-          <SelectField
-            label="Moneda"
-            value="Colombian Peso"
-            options={["Colombian Peso", "US Dollar", "Euro"]}
-          />
-          <SelectField
-            label="Separador de miles"
-            value="(.) El carácter utilizado es una coma"
-            options={[
-              "(.) El carácter utilizado es una coma",
-              "(,) El carácter utilizado es un punto",
-            ]}
-            className={isMobile ? "" : "col-span-2"}
-          />
-        </div>
+        {/* ── Identidad corporativa ──────────────────────────────────────── */}
+        <SectionCard title="Identidad corporativa">
+          <div className="flex flex-col gap-3">
+            <div className={cn(
+              "rounded-lg border border-border bg-muted overflow-hidden",
+              isMobile ? "h-[140px]" : "h-[100px]",
+            )}>
+              <LogoUpload isMobile={isMobile} />
+            </div>
+            <div className={cn("grid gap-x-4 gap-y-3", cols)}>
+              <Field label="Código" value="451"                       className="min-w-0" />
+              <Field label="Nombre" value="Fracttal Demo"             className="min-w-0" />
+              <Field label="Email"  value="pablo.moreno@fracttal.com" className="min-w-0" />
+              <SelectField
+                label="Moneda"
+                value="Colombian Peso"
+                options={["Colombian Peso", "US Dollar", "Euro"]}
+                className="min-w-0"
+              />
+              <div className={cn("min-w-0", !isMobile && "col-span-2")}>
+                <SelectField
+                  label="Separador de miles"
+                  value="(.) El carácter utilizado es una coma"
+                  options={[
+                    "(.) El carácter utilizado es una coma",
+                    "(,) El carácter utilizado es un punto",
+                  ]}
+                />
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+
+        <Separator />
+
+        {/* ── Configuración regional ─────────────────────────────────────── */}
+        <SectionCard title="Configuración regional">
+          <div className={cn("grid gap-x-4 gap-y-3", cols)}>
+            <SelectField
+              label="Zona horaria UTC"
+              value="America/Sao_Paulo"
+              options={["America/Sao_Paulo", "America/Bogota", "America/New_York", "Europe/Madrid"]}
+              className="min-w-0"
+            />
+            <SelectField
+              label="Idioma para correos"
+              value="Español"
+              options={["Español", "English", "Português"]}
+              className="min-w-0"
+            />
+            <div className={cn("min-w-0", !isMobile && "col-span-2")}>
+              <SelectField
+                label="Valoración de existencias"
+                value="PMP (Promedio)"
+                options={["PMP (Promedio)", "FIFO", "LIFO"]}
+              />
+            </div>
+          </div>
+        </SectionCard>
+
+        <Separator />
+
+        {/* ── Dirección y ubicación ──────────────────────────────────────── */}
+        <SectionCard title="Dirección y ubicación">
+          <div className={cn("grid gap-x-4 gap-y-3", cols)}>
+            <div className={cn("min-w-0", !isMobile && "col-span-2")}>
+              <Field label="Dirección" value="Arrengo #451 COL" />
+            </div>
+            <Field label="Ciudad"                         value="Medellín" className="min-w-0" />
+            <Field label="Departamento / Estado / Región" value="NA"       className="min-w-0" />
+            <Field label="País"                           value="COL"      className="min-w-0" />
+            <Field label="Código Área"                    value="7656544"  className="min-w-0" />
+            <Field label="Latitud"                        value="6.2017336"  className="min-w-0" />
+            <Field label="Longitud"                       value="-75.576614" className="min-w-0" />
+            <div className={cn("min-h-[220px] min-w-0", !isMobile && "col-span-2")}>
+              <MapEmbed />
+            </div>
+          </div>
+        </SectionCard>
+
+        <Separator />
+
+        {/* ── Contacto ──────────────────────────────────────────────────── */}
+        <SectionCard title="Contacto">
+          <div className={cn("grid gap-x-4 gap-y-3", cols)}>
+            <Field label="Telf. Principal"  value="+57 3193615662"   className="min-w-0" />
+            <Field label="Telf. Secundario"                          className="min-w-0" />
+            <Field label="Teléfono SMS"                              className="min-w-0" />
+            <Field label="Página Web"       value="www.fracttal.com" className="min-w-0" />
+          </div>
+        </SectionCard>
+
       </div>
-
-      <Separator className="my-1.5" />
-
-      {/* 2. Ubicación */}
-      <div className={cn("grid gap-x-2 gap-y-1.5", isMobile ? "grid-cols-1" : "grid-cols-2 items-stretch")}>
-        {/* Columna izquierda: campos */}
-        <div className="flex flex-col gap-y-1.5">
-          <Field label="Dirección"                      value="Arrengo #451 COL" />
-          <Field label="Ciudad"                         value="Medellín" />
-          <Field label="Departamento / Estado / Región" value="NA" />
-          <Field label="País"                           value="COL" />
-          <Field label="Código Área"                    value="7656544" />
-        </div>
-        {/* Columna derecha: mapa */}
-        <MapEmbed />
-      </div>
-
-      <Separator className="my-1.5" />
-
-      {/* 3. Coordenadas y zona horaria */}
-      <div className={cn("grid gap-x-2 gap-y-1.5", isMobile ? "grid-cols-1" : "grid-cols-3")}>
-        <SelectField
-          label="Zonas horarias UTC"
-          value="America/Sao_Paulo"
-          options={["America/Sao_Paulo", "America/Bogota", "America/New_York", "Europe/Madrid"]}
-        />
-        <Field label="Latitud"  value="6.2017336" />
-        <Field label="Longitud" value="-75.576614" />
-      </div>
-
-      <Separator className="my-1.5" />
-
-      {/* 4. Teléfonos */}
-      <div className={cn("grid gap-x-2 gap-y-1.5", isMobile ? "grid-cols-1" : "grid-cols-3")}>
-        <Field label="Telf. Principal"  value="+57 3193615662" />
-        <Field label="Telf. Secundario" />
-        <Field label="Teléfono SMS" />
-      </div>
-
-      <Separator className="my-1.5" />
-
-      {/* 5. Configuración adicional */}
-      <div className={cn("grid gap-x-2 gap-y-1.5", isMobile ? "grid-cols-1" : "grid-cols-3")}>
-        <SelectField
-          label="Idioma Para envío de correos"
-          value="Español"
-          options={["Español", "English", "Português"]}
-        />
-        <SelectField
-          label="Valoración de Existencias"
-          value="PMP (Promedio)"
-          options={["PMP (Promedio)", "FIFO", "LIFO"]}
-        />
-        <Field label="Página Web" value="www.fracttal.com" />
-      </div>
-
     </div>
   )
 }

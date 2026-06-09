@@ -11,14 +11,13 @@ import { DrawerTarea } from "./screens/drawer-tarea"
 import { KanbanCardOT } from "./screens/kanban-card-ot"
 import { KanbanScreen } from "./screens/kanban-screen"
 import { UserMenu } from "./screens/user-menu"
-import { ConfiguracionGeneral }  from "./screens/configuracion-general"
-import { CalendarioLaboral }     from "./screens/calendario-laboral"
 import { TareasPendientes }      from "./screens/tareas-pendientes"
-import { CuentasUsuarios }      from "./screens/cuentas-usuarios"
+import { CuentasUsuarios }      from "../../templates/configuracion/CuentasUsuarios"
 import { DetalleMedidor }       from "./screens/detalle-medidor"
 import { VistaArbol }           from "./screens/vista-arbol"
 import { PresupuestoDetalle }   from "./screens/presupuesto-detalle"
 import { DetalleEmpleado }      from "./screens/detalle-empleado"
+import { DialogVariants }       from "./screens/dialog-variants"
 import {
   SkeletonKanban,
   SkeletonConfiguracion,
@@ -85,6 +84,13 @@ export const SAMPLE_SCREENS: SampleScreen[] = [
     component: KanbanCardOT,
   },
   {
+    id: "dialog-variants",
+    name: "Dialog Variants",
+    description: "Variantes de modal: confirmación, iconos semánticos y formularios",
+    status: "done",
+    component: DialogVariants,
+  },
+  {
     id: "user-menu",
     name: "User Menu",
     description: "Menú desplegable de perfil con ajustes, modo oscuro y cerrar sesión",
@@ -103,26 +109,6 @@ export const SAMPLE_SCREENS: SampleScreen[] = [
     group: "kanban",
   },
   {
-    id: "configuracion-general",
-    name: "Configuración General",
-    description: "Pantalla de ajustes generales de compañía: identidad, dirección, mapa y preferencias",
-    status: "done",
-    component: ConfiguracionGeneral,
-    layout: "full-page",
-    section: "pantallas",
-    group: "configuracion",
-  },
-  {
-    id: "calendario-laboral",
-    name: "Calendario Laboral",
-    description: "Gestión de días laborales y días festivos con tabla de feriados",
-    status: "done",
-    component: CalendarioLaboral,
-    layout: "full-page",
-    section: "pantallas",
-    group: "configuracion",
-  },
-  {
     id: "tareas-pendientes",
     name: "Tareas Pendientes",
     description: "Listado de tareas pendientes con tabla, filtros y acciones por fila",
@@ -133,9 +119,9 @@ export const SAMPLE_SCREENS: SampleScreen[] = [
     group: "tareas",
   },
   {
-    id: "cuentas-usuarios",
-    name: "Cuentas de Usuarios",
-    description: "Gestión de cuentas de usuario con tabla de usuarios, roles y estados",
+    id: "configuracion-modulo-completo",
+    name: "Configuración — Módulo completo",
+    description: "General · Cuentas de Usuarios · Calendario Laboral navegables desde un único SettingsNav.",
     status: "done",
     component: CuentasUsuarios,
     layout: "full-page",

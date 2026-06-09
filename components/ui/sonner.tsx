@@ -16,6 +16,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       style={
         {
+          fontFamily:         "var(--font-sans)",
           "--border-radius":  "var(--radius)",
           "--normal-bg":      "var(--popover)",
           "--normal-border":  "var(--border)",

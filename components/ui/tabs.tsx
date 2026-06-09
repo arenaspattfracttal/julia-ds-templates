@@ -6,6 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 function Tabs({
   className,
@@ -54,7 +55,10 @@ function TabsList({
     if (!list) return
 
     function update() {
-      const active = list!.querySelector('[data-state="active"]') as HTMLElement | null
+      // Usamos aria-selected (no data-state): cuando un TabsTrigger se envuelve
+      // en un Tooltip, el data-state del tooltip ("closed") pisa el de Tabs
+      // ("active"). aria-selected lo setea Radix Tabs y el tooltip no lo toca.
+      const active = list!.querySelector('[aria-selected="true"]') as HTMLElement | null
       if (!active) return
 
       if (variant === "default" || variant === "white") {
@@ -108,13 +112,25 @@ function TabsList({
       }
     }
 
+    // Observa el list y cada trigger. observeAll es idempotente, así que se
+    // re-llama cuando los triggers se re-montan: al alternar entre texto y
+    // solo-ícono, el TabsTrigger pasa a envolverse en un Tooltip y React
+    // reemplaza el nodo del botón — el RO observaba el botón viejo (ya removido)
+    // y el indicador quedaba con el ancho anterior.
+    const ro = new ResizeObserver(update)
+    function observeAll() {
+      ro.observe(list!)
+      list!.querySelectorAll('[data-slot="tabs-trigger"]').forEach((t) => ro.observe(t))
+    }
+    observeAll()
+
+    // Medición inicial síncrona (corre tras el layout en useLayoutEffect).
     update()
 
-    const mo = new MutationObserver(update)
-    mo.observe(list, { attributes: true, subtree: true, attributeFilter: ["data-state"] })
-
-    const ro = new ResizeObserver(update)
-    ro.observe(list)
+    // childList: detecta el re-montaje de triggers (texto ↔ ícono) y re-observa
+    // los nodos nuevos. aria-selected: re-mide al cambiar de pestaña.
+    const mo = new MutationObserver(() => { observeAll(); update() })
+    mo.observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-selected"] })
 
     return () => { mo.disconnect(); ro.disconnect() }
   }, [variant])
@@ -178,13 +194,16 @@ function TabsList({
 function TabsTrigger({
   className,
   badge,
+  tooltip,
   children,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.Trigger> & {
   /** Número de notificaciones que se muestra como bolita sobre el trigger */
   badge?: number | string
+  /** Tooltip que aparece al hacer hover — recomendado cuando el trigger muestra solo ícono */
+  tooltip?: string
 }) {
-  return (
+  const trigger = (
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
@@ -197,8 +216,8 @@ function TabsTrigger({
         "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none",
         "disabled:pointer-events-none disabled:opacity-50",
         "group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start",
-        "data-[state=active]:text-foreground group-data-[variant=white]/tabs-list:data-[state=active]:text-primary",
-        "dark:text-muted-foreground dark:hover:text-foreground dark:data-[state=active]:text-foreground",
+        "aria-selected:text-foreground group-data-[variant=white]/tabs-list:aria-selected:text-primary",
+        "dark:text-muted-foreground dark:hover:text-foreground dark:aria-selected:text-foreground",
         className
       )}
       {...props}
@@ -210,6 +229,14 @@ function TabsTrigger({
         </Badge>
       )}
     </TabsPrimitive.Trigger>
+  )
+
+  if (!tooltip) return trigger
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
   )
 }
 

@@ -123,6 +123,7 @@ const COMP_ITEM_ICONS: Record<string, LucideIcon> = {
 // ─── Screen item → icon mapping ──────────────────────────────────────────────
 
 const SCREEN_ITEM_ICONS: Record<string, LucideIcon> = {
+  "dialog-variants": AppWindow,
   "topbar":          PanelTop,
   "app-sidebar":     PanelLeftIcon,
   "toolbar":         LayoutTemplate,
@@ -130,10 +131,8 @@ const SCREEN_ITEM_ICONS: Record<string, LucideIcon> = {
   "kanban-card-ot":  Columns3,
   "kanban-screen":           Columns3,
   "user-menu":               User,
-  "configuracion-general":   Settings,
-  "calendario-laboral":      Calendar,
-  "tareas-pendientes":       ClipboardList,
-  "cuentas-usuarios":        Users,
+  "configuracion-modulo-completo": Settings,
+  "tareas-pendientes":             ClipboardList,
   "vista-arbol":             FolderOpen,
   "detalle-medidor":         Wifi,
   "presupuesto-detalle":     Receipt,
